@@ -41,6 +41,14 @@ def fill_missing_timestamps(
     return pd.concat(result, ignore_index=True)
 
 
+def strip_host_names(df: pd.DataFrame, host_col: str = "Series") -> pd.DataFrame:
+    """Strip leading and trailing whitespace from host/server identifiers."""
+    df = df.copy()
+    if host_col in df.columns:
+        df[host_col] = df[host_col].astype(str).str.strip()
+    return df
+
+
 def clip_temperature(
     df: pd.DataFrame,
     temp_cols: list[str] | None = None,

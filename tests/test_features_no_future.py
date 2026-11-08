@@ -1,4 +1,4 @@
-"""Tests to verify feature engineering does not introduce future information."""
+"""Tests to verify feature engineering includes current-state t but forbids future values > t."""
 import pytest
 import pandas as pd
 import numpy as np
@@ -9,6 +9,7 @@ sys.path.insert(0, "d:/mainel5/src")
 from ttwin.features import (
     add_lag_features, add_rolling_features, create_target,
     add_calendar_features, compute_effective_cpu_temp, get_feature_set,
+    build_features,
 )
 
 
@@ -23,34 +24,79 @@ def sample_server_df():
         "CPU1_Temperature": np.arange(50, dtype=float) + 30,
         "CPU2_Temperature": np.arange(50, dtype=float) + 28,
         "CPU_Load": np.random.uniform(0, 100, 50),
+        "Inlet_Temperature": np.ones(50) * 22.0,
+        "Power": np.ones(50) * 250.0,
+        "Fan_speed1": np.ones(50) * 4500.0,
     })
 
 
 def test_lag_features_no_future(sample_server_df):
+    """Lag 1 uses observation at t-1, lag 3 uses observation at t-3."""
     df = add_lag_features(sample_server_df, ["CPU_Temperature"], [1, 3])
     for i in range(1, len(df)):
         assert df.iloc[i]["CPU_Temperature_lag_1"] == df.iloc[i - 1]["CPU_Temperature"]
     assert pd.isna(df.iloc[0]["CPU_Temperature_lag_1"])
 
 
-def test_rolling_features_causal(sample_server_df):
+def test_rolling_features_end_at_t(sample_server_df):
+    """Rolling features end at time t: includes observation at t and w-1 preceding."""
     df = add_rolling_features(sample_server_df, ["CPU_Temperature"], [3])
-    for i in range(4, len(df)):
-        vals = sample_server_df["CPU_Temperature"].iloc[i - 3:i].values
+    for i in range(2, len(df)):
+        # Window of size 3 ending at i: [i-2, i-1, i]
+        vals = sample_server_df["CPU_Temperature"].iloc[i - 2:i + 1].values
         expected = np.mean(vals)
         np.testing.assert_almost_equal(
             df.iloc[i]["CPU_Temperature_rmean_3"], expected, decimal=5
         )
 
 
-def test_target_creation_correct_horizon(sample_server_df):
+def test_perturbing_future_leaves_features_at_t_unchanged(sample_server_df):
+    """Perturbing any rows after t must leave all features at time t completely unchanged."""
+    df_orig = build_features(sample_server_df.copy(), horizons=[1, 6])
+    feature_cols = get_feature_set("S4", df_orig.columns.tolist())
+
+    t_idx = 25  # evaluate at step 25
+    features_at_t_orig = df_orig.iloc[t_idx][feature_cols].copy()
+
+    # Perturb all future rows (> t_idx)
+    df_perturbed = sample_server_df.copy()
+    df_perturbed.loc[t_idx + 1:, "CPU_Temperature"] += 999.0
+    df_perturbed.loc[t_idx + 1:, "CPU1_Temperature"] += 999.0
+    df_perturbed.loc[t_idx + 1:, "CPU2_Temperature"] += 999.0
+    df_perturbed.loc[t_idx + 1:, "CPU_Load"] = 100.0
+
+    df_perturbed_feats = build_features(df_perturbed, horizons=[1, 6])
+    features_at_t_pert = df_perturbed_feats.iloc[t_idx][feature_cols].copy()
+
+    # Features at t must be strictly identical
+    pd.testing.assert_series_equal(features_at_t_orig, features_at_t_pert)
+
+
+def test_target_creation_correct_horizon_and_delta(sample_server_df):
+    """Target creates absolute T(t+h) and delta T(t+h) - T(t)."""
     df = create_target(sample_server_df, "CPU_Temperature", horizon_steps=3)
     target_col = "CPU_Temperature_target_3"
+    delta_col = "CPU_Temperature_delta_3"
     assert target_col in df.columns
+    assert delta_col in df.columns
     for i in range(len(df) - 3):
         assert df.iloc[i][target_col] == sample_server_df.iloc[i + 3]["CPU_Temperature"]
+        assert df.iloc[i][delta_col] == sample_server_df.iloc[i + 3]["CPU_Temperature"] - sample_server_df.iloc[i]["CPU_Temperature"]
     for i in range(len(df) - 3, len(df)):
         assert pd.isna(df.iloc[i][target_col])
+        assert pd.isna(df.iloc[i][delta_col])
+
+
+def test_feature_set_s1_and_s4_include_current_temp(sample_server_df):
+    """S1 and S4 must include current temperature state at t."""
+    df = build_features(sample_server_df)
+    s1_cols = get_feature_set("S1", df.columns.tolist())
+    s4_cols = get_feature_set("S4", df.columns.tolist())
+
+    assert "CPU_Temperature" in s1_cols
+    assert "CPU_Temperature" in s4_cols
+    assert "CPU1_Temperature" in s1_cols
+    assert "CPU2_Temperature" in s1_cols
 
 
 def test_effective_cpu_temp_is_max(sample_server_df):

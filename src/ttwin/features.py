@@ -46,13 +46,13 @@ def add_rolling_features(
 ) -> pd.DataFrame:
     """Add rolling mean and std features per server.
 
-    Shift by 1 to avoid including current value (prevents leakage).
+    The rolling window ends at t (includes observation at time t and preceding w-1 timesteps).
+    This represents the current state up to time t and introduces no future information.
     """
     df = df.copy()
     for col in columns:
         for w in windows:
-            shifted = df.groupby(server_col)[col].shift(1)
-            rolling = shifted.groupby(df[server_col]).rolling(window=w, min_periods=1)
+            rolling = df.groupby(server_col)[col].rolling(window=w, min_periods=1)
             df[f"{col}_rmean_{w}"] = rolling.mean().reset_index(level=0, drop=True)
             df[f"{col}_rstd_{w}"] = rolling.std().reset_index(level=0, drop=True).fillna(0)
     return df
@@ -64,10 +64,13 @@ def create_target(
     horizon_steps: int,
     server_col: str = "Series",
 ) -> pd.DataFrame:
-    """Create the prediction target: value `horizon_steps` into the future."""
+    """Create the prediction targets: absolute value and delta at horizon_steps."""
     df = df.copy()
     target_name = f"{target_col}_target_{horizon_steps}"
-    df[target_name] = df.groupby(server_col)[target_col].shift(-horizon_steps)
+    delta_name = f"{target_col}_delta_{horizon_steps}"
+    future_val = df.groupby(server_col)[target_col].shift(-horizon_steps)
+    df[target_name] = future_val
+    df[delta_name] = future_val - df[target_col]
     return df
 
 
@@ -90,11 +93,11 @@ def compute_effective_cpu_temp(
 def get_feature_set(feature_set: str, available_columns: List[str]) -> List[str]:
     """Return feature columns for a given feature set name.
 
-    S0: empty (persistence)
-    S1: lagged temperature only
-    S2: workload + calendar (planning setting)
-    S3: S2 + power
-    S4: S3 + fan + inlet + temperature lags (full monitoring)
+    S0: empty (persistence baseline)
+    S1: current temperature state at t (CPU, CPU1, CPU2) + lagged/rolling temperature
+    S2: workload + calendar (planning setting, no temperature history)
+    S3: S2 + power (planning setting with power)
+    S4: S3 + fan + inlet + current temperatures + temperature lags/rolling (full monitoring)
     """
     workload_cols = [
         "CPU_Load", "Ram", "Ram_Used", "CPU_cores", "CPU_cores_used",
@@ -105,6 +108,11 @@ def get_feature_set(feature_set: str, available_columns: List[str]) -> List[str]
     fan_cols = ["Fan_speed1", "Fan_speed2", "Fan_speed3", "Fan_speed4"]
     inlet_cols = ["Inlet_Temperature"]
 
+    current_temp_cols = [
+        c for c in ["CPU_Temperature", "CPU1_Temperature", "CPU2_Temperature"]
+        if c in available_columns
+    ]
+
     temp_lag_cols = [
         c for c in available_columns
         if ("Temperature" in c or "CPU_Temperature" in c)
@@ -114,7 +122,7 @@ def get_feature_set(feature_set: str, available_columns: List[str]) -> List[str]
     if feature_set == "S0":
         return []
     elif feature_set == "S1":
-        return [c for c in temp_lag_cols if c in available_columns]
+        return current_temp_cols + [c for c in temp_lag_cols if c in available_columns]
     elif feature_set == "S2":
         base = workload_cols + calendar_cols
         return [c for c in base if c in available_columns]
@@ -124,6 +132,7 @@ def get_feature_set(feature_set: str, available_columns: List[str]) -> List[str]
     elif feature_set == "S4":
         base = workload_cols + calendar_cols + power_cols + fan_cols + inlet_cols
         features = [c for c in base if c in available_columns]
+        features += current_temp_cols
         features += [c for c in temp_lag_cols if c in available_columns]
         return features
     else:

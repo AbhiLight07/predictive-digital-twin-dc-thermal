@@ -1,5 +1,9 @@
-# Data files
-data/
+# Data files — exclude everything in data/ except the README
+data/*
+!data/README.md
+data/raw/
+data/interim/
+data/processed/
 *.parquet
 *.csv
 

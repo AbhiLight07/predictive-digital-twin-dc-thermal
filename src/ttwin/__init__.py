@@ -1,3 +1,3 @@
-"""ttwin — Thermal Twin: server temperature prediction toolkit."""
+"""ttwin -- Thermal Twin for Data Centre Temperature Prediction."""
 
 __version__ = "0.1.0"

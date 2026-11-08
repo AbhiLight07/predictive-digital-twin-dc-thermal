@@ -1,0 +1,17 @@
+# Column mappings for the Melbourne cloud trace dataset
+# To be populated after the data audit (Phase 1)
+#
+# Format:
+#   dataset1:
+#     host_col: <column name>
+#     time_col: <column name>
+#     target_cols: [...]
+#     workload_cols: [...]
+#     power_cols: [...]
+#     fan_cols: [...]
+#     temperature_cols: [...]
+#   dataset2:
+#     ...
+
+dataset1: null  # Populate after audit
+dataset2: null  # Populate after audit

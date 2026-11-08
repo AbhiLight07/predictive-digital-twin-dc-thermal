@@ -1,0 +1,34 @@
+# Evaluation Protocol — Frozen after Phase 2
+# WARNING: Do not modify after freezing without logging the reason in docs/decisions.md
+#
+# This file will be populated after the data audit and before any model training.
+
+protocol_frozen: false
+protocol_frozen_date: null
+protocol_frozen_commit: null
+
+splits:
+  A_chronological:
+    description: "Global time cutoff per cluster; train ~70%, test ~30%"
+    train_fraction: 0.7
+    embargo_gap: null  # Set after knowing sampling interval and max horizon
+    validation_from_train_end: null
+  B_leave_servers_out:
+    description: "Hold out ~20% of servers entirely; 5 repeats with fixed seeds"
+    holdout_fraction: 0.2
+    n_repeats: 5
+    seeds: [42, 123, 456, 789, 1024]
+    stratify_by: "mean_cpu_load"  # If feasible
+  C_strict:
+    description: "Held-out servers AND later time"
+
+horizons_minutes: [10, 60, 360]  # 10min, 1h, 6h — adjust to real sampling interval
+
+metrics:
+  - MAE
+  - RMSE
+  - skill_score_vs_persistence
+
+reporting:
+  per_server_stats: [median, IQR, worst_decile]
+  global_stats: [mean, std]

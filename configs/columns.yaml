@@ -1,17 +1,158 @@
 # Column mappings for the Melbourne cloud trace dataset
-# To be populated after the data audit (Phase 1)
+# Verified from data audit on 2026-11-08
 #
-# Format:
-#   dataset1:
-#     host_col: <column name>
-#     time_col: <column name>
-#     target_cols: [...]
-#     workload_cols: [...]
-#     power_cols: [...]
-#     fan_cols: [...]
-#     temperature_cols: [...]
-#   dataset2:
-#     ...
+# Dataset 1: 81 servers (qh2-rcc120 to qh2-rcc200), 18 columns
+# Dataset 2: 64 servers (qh2-rcc201 to qh2-rcc264), 13 columns
 
-dataset1: null  # Populate after audit
-dataset2: null  # Populate after audit
+dataset1:
+  file: dataset1_combined.csv
+  hardware: "Dell R840 (reported, unverified)"
+  host_col: Series
+  time_col: Time
+  n_servers: 81
+  n_rows: 2748525
+  coverage_days: 253.9
+  date_range: ["2018-10-09", "2019-06-20"]
+  sampling_interval_min: 10
+
+  target_cols:
+    - CPU1_Temperature
+    - CPU2_Temperature
+
+  workload_cols:
+    - CPU_Load
+    - Ram
+    - Ram_Used
+    - CPU_cores
+    - CPU_cores_used
+    - Network_RX
+    - Network_TX
+    - No_Of_Running_vms
+
+  power_cols:
+    - Power
+
+  fan_cols:
+    - Fan_speed1
+    - Fan_speed2
+    - Fan_speed3
+    - Fan_speed4
+
+  temperature_cols:
+    - Inlet_Temperature
+    - CPU1_Temperature
+    - CPU2_Temperature
+
+  # Servers with 100% missing inlet/fan data (still have CPU temps)
+  servers_no_inlet_fan:
+    - qh2-rcc196
+    - qh2-rcc197
+    - qh2-rcc198
+    - qh2-rcc199
+    - qh2-rcc200
+
+dataset2:
+  file: dataset2_combined.csv
+  hardware: "Dell C6320 (reported, unverified)"
+  host_col: Series
+  time_col: Time
+  n_servers: 64
+  n_rows: 1281024
+  coverage_days: 139.0
+  date_range: ["2019-02-01", "2019-06-20"]
+  sampling_interval_min: 10
+
+  target_cols:
+    - CPU1_Temperature
+    - CPU2_Temperature
+
+  workload_cols:
+    - CPU_Load
+    - Ram
+    - Ram_Used
+    - CPU_cores
+    - CPU_cores_used
+    - Network_RX
+    - Network_TX
+    - No_Of_Running_vms
+
+  power_cols:
+    - Power
+
+  fan_cols: []  # Not available in this cluster
+
+  temperature_cols:
+    - CPU1_Temperature
+    - CPU2_Temperature
+    # No Inlet_Temperature in this cluster
+
+  # Servers with severe data quality issues (>50% temp missing or dead sensors)
+  servers_exclude:
+    - qh2-rcc263  # 100% missing temperature
+    - qh2-rcc264  # 100% missing temperature
+    - qh2-rcc226  # ~79% missing temperature
+
+# Shared columns across both clusters (for cross-cluster E3)
+shared_columns:
+  host: Series
+  time: Time
+  workload:
+    - CPU_Load
+    - Ram
+    - Ram_Used
+    - CPU_cores
+    - CPU_cores_used
+    - Network_RX
+    - Network_TX
+    - No_Of_Running_vms
+  power:
+    - Power
+  temperature:
+    - CPU1_Temperature
+    - CPU2_Temperature
+
+# Feature sets (ablation ladder)
+feature_sets:
+  S0_persistence:
+    description: "Next value = last value"
+    features: []  # No features; prediction = last observed temperature
+
+  S1_history_only:
+    description: "Lagged temperature only"
+    features:
+      - CPU1_Temperature_lag_*
+      - CPU2_Temperature_lag_*
+
+  S2_workload_only:
+    description: "Planning setting -- workload + calendar, no power/fan/temp history"
+    features:
+      - CPU_Load
+      - Ram
+      - Ram_Used
+      - CPU_cores
+      - CPU_cores_used
+      - Network_RX
+      - Network_TX
+      - No_Of_Running_vms
+      - hour
+      - dayofweek
+    note: "No disk/storage columns available in this dataset"
+
+  S3_workload_power:
+    description: "S2 + power"
+    features:
+      - S2_workload_only
+      - Power
+
+  S4_full_monitoring:
+    description: "S3 + fan speeds + inlet temp + temperature lags (Dataset 1 only)"
+    features:
+      - S3_workload_power
+      - Fan_speed1
+      - Fan_speed2
+      - Fan_speed3
+      - Fan_speed4
+      - Inlet_Temperature
+      - CPU1_Temperature_lag_*
+      - CPU2_Temperature_lag_*
+    note: "Only applicable to Dataset 1; 5 servers lack fan/inlet data"

@@ -30,6 +30,7 @@ def guess_host_column(columns: list[str]) -> str | None:
         "hostname", "host", "server", "node", "machine",
         "host_name", "server_name", "node_name", "machine_name",
         "hostid", "host_id", "server_id", "node_id", "machine_id",
+        "series",
     ]
     cols_lower = {c.lower().strip(): c for c in columns}
     for cand in candidates:
@@ -278,22 +279,22 @@ def audit_file(
     print(f"Total chunks: {chunk_count}")
 
     # ── Global missingness ──
-    print(f"\n{'─'*60}")
+    print(f"\n{'-'*60}")
     print("GLOBAL COLUMN MISSINGNESS")
-    print(f"{'─'*60}")
+    print(f"{'-'*60}")
     print(f"{'Column':<40} {'Missing':>10} {'%':>8}")
-    print(f"{'─'*40} {'─'*10} {'─'*8}")
+    print(f"{'-'*40} {'-'*10} {'-'*8}")
     for col in all_columns:
         missing = col_missing_counts[col]
         pct = 100.0 * missing / total_rows if total_rows > 0 else 0
-        flag = " ⚠" if pct > 10 else ""
+        flag = " [!]" if pct > 10 else ""
         print(f"{col:<40} {missing:>10,} {pct:>7.2f}%{flag}")
 
     # ── Per-server summary ──
     n_servers = len(server_stats)
-    print(f"\n{'─'*60}")
+    print(f"\n{'-'*60}")
     print(f"PER-SERVER SUMMARY ({n_servers} servers)")
-    print(f"{'─'*60}")
+    print(f"{'-'*60}")
 
     # Build a summary table
     summary_rows = []
@@ -340,7 +341,7 @@ def audit_file(
 
     # Print summary table
     print(f"\n{'Server':<25} {'Rows':>8} {'Days':>8} {'Start':<22} {'End':<22}")
-    print(f"{'─'*25} {'─'*8} {'─'*8} {'─'*22} {'─'*22}")
+    print(f"{'-'*25} {'-'*8} {'-'*8} {'-'*22} {'-'*22}")
     for row in summary_rows:
         days_str = f"{row['days']:.1f}" if row['days'] is not None else "N/A"
         start_str = str(row['time_min'])[:19] if row['time_min'] is not None else "N/A"
@@ -349,13 +350,13 @@ def audit_file(
 
     # Temperature column details per server
     if temp_cols:
-        print(f"\n{'─'*60}")
-        print("TEMPERATURE COLUMNS — PER-SERVER STATISTICS")
-        print(f"{'─'*60}")
+        print(f"\n{'-'*60}")
+        print("TEMPERATURE COLUMNS -- PER-SERVER STATISTICS")
+        print(f"{'-'*60}")
         for tc in temp_cols:
             print(f"\n  Column: {tc}")
             print(f"  {'Server':<25} {'Mean':>8} {'Min':>8} {'Max':>8} {'Missing%':>10}")
-            print(f"  {'─'*25} {'─'*8} {'─'*8} {'─'*8} {'─'*10}")
+            print(f"  {'-'*25} {'-'*8} {'-'*8} {'-'*8} {'-'*10}")
             for row in summary_rows:
                 mean_str = f"{row['temp_means'].get(tc, float('nan')):.1f}" if tc in row['temp_means'] else "N/A"
                 if tc in row['temp_ranges']:
@@ -395,9 +396,9 @@ def audit_file(
     n_qualifying = len(qualifying_servers)
     gate_pass = n_qualifying >= 40
 
-    print(f"\nServers with ≥60 days coverage & <10% missing (temp + workload): {n_qualifying}")
+    print(f"\nServers with >=60 days coverage & <10% missing (temp + workload): {n_qualifying}")
     print(f"Gate threshold: 40 servers")
-    print(f"Gate verdict: {'✅ PASS' if gate_pass else '❌ FAIL'}")
+    print(f"Gate verdict: {'PASS' if gate_pass else 'FAIL'}")
 
     if not gate_pass:
         print(f"\n[WARN] Only {n_qualifying} servers qualify. Gate requires 40.")
@@ -405,9 +406,9 @@ def audit_file(
             print(f"Qualifying servers: {qualifying_servers[:20]}{'...' if len(qualifying_servers) > 20 else ''}")
 
     # ── Sampling interval ──
-    print(f"\n{'─'*60}")
+    print(f"\n{'-'*60}")
     print("SAMPLING INTERVAL ESTIMATE")
-    print(f"{'─'*60}")
+    print(f"{'-'*60}")
     # Read a small sample to estimate
     if time_col:
         try:
@@ -432,9 +433,9 @@ def audit_file(
         print("No time column available for interval estimation.")
 
     # ── Column dtype summary ──
-    print(f"\n{'─'*60}")
+    print(f"\n{'-'*60}")
     print("COLUMN DTYPES (from first chunk)")
-    print(f"{'─'*60}")
+    print(f"{'-'*60}")
     for col, dtype in col_dtypes.items():
         print(f"  {col:<40} {dtype}")
 

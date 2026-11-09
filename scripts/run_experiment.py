@@ -93,7 +93,10 @@ def run_single_experiment(config: dict) -> dict:
     horizon_key = config["horizon"]
     seed = config.get("seed", 42)
 
-    horizon_steps = HORIZON_MAP.get(horizon_key, int(horizon_key))
+    if horizon_key in HORIZON_MAP:
+        horizon_steps = HORIZON_MAP[horizon_key]
+    else:
+        horizon_steps = int(horizon_key)
     target_col = "CPU_Temperature"
     target_name = f"{target_col}_target_{horizon_steps}"
 
@@ -369,6 +372,7 @@ def main():
     parser.add_argument("--split", default="A", choices=["A", "B", "C"])
     parser.add_argument("--horizon", default="10min", choices=["10min", "1h", "6h"])
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--seeds", type=int, nargs="+", default=None)
     args = parser.parse_args()
 
     if args.config:
@@ -383,6 +387,8 @@ def main():
             "horizon": args.horizon,
             "seed": args.seed,
         }
+        if args.seeds:
+            config["seeds"] = args.seeds
 
     exp_id = generate_exp_id(config)
     print(f"Experiment ID: {exp_id}")

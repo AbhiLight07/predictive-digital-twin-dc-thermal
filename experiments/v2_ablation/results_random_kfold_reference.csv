@@ -1,0 +1,2 @@
+split,mean_mae,std_mae
+Random 5-Fold CV,0.9224844113302815,0.02249069546588803

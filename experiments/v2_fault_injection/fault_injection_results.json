@@ -1,0 +1,30 @@
+{
+  "test_type": "SYNTHETIC_FAULT_INJECTION_SIMULATION",
+  "conformal_q_hat": 1.8,
+  "alert_threshold_degC": 75.0,
+  "nominal_false_alarm_rate": 0.0,
+  "scenarios": {
+    "simulated_fan_failure": {
+      "description": "Synthetic sudden +15\u00b0C thermal runaway from simulated cooling loss",
+      "fault_start_step": 300,
+      "fault_duration_steps": 30,
+      "detection_latency_timesteps": 2,
+      "detection_latency_minutes": 20,
+      "true_positive_rate_during_fault": 0.9333333333333333
+    },
+    "simulated_workload_surge": {
+      "description": "Synthetic sudden +10\u00b0C workload thermal surge",
+      "fault_start_step": 600,
+      "detection_latency_timesteps": 0,
+      "detection_latency_minutes": 0,
+      "true_positive_rate_during_fault": 1.0
+    },
+    "simulated_sensor_drift": {
+      "description": "Synthetic gradual sensor calibration drift (+0.5\u00b0C/hr)",
+      "fault_start_step": 750,
+      "detection_latency_timesteps": 56,
+      "detection_latency_minutes": 560,
+      "true_positive_rate_during_fault": 0.5733333333333334
+    }
+  }
+}

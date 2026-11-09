@@ -1,0 +1,4 @@
+method,nominal_coverage,empirical_coverage,mean_width_C,spearman_r
+Constant-Width Conformal,0.9,0.9033186651998533,4.203829847571111,0.0
+Normalized Conformal,0.9,0.8644481114778144,3.502191002000067,0.4191750892432525
+Conformalized Quantile Regression (CQR),0.9,0.9118903557022369,3.679316870567795,0.46998321331019205

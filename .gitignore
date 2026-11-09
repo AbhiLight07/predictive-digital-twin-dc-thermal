@@ -6,6 +6,8 @@ data/interim/
 data/processed/
 *.parquet
 *.csv
+!experiments/**/*.csv
+!data/README.md
 
 # Python
 .venv/

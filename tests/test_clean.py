@@ -1,10 +1,7 @@
 """Tests for data cleaning pipeline and time-gap handling."""
-import sys
 import numpy as np
 import pandas as pd
 import pytest
-
-sys.path.insert(0, "d:/mainel5/src")
 
 from ttwin.clean import clean_dataset, strip_host_names, fill_missing_timestamps
 from ttwin.features import build_features

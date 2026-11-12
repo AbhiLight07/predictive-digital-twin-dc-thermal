@@ -1,7 +1,7 @@
 # Results v3 — Comprehensive Gap-Corrected Experiments
 
 > [!IMPORTANT]
-> All results in this report are strictly **preliminary**. Telemetry is processed with continuous 10-minute grid alignment (NaN insertion for missing intervals) to guarantee causal, gap-free lag and horizon shifts.
+> All results in this report are strictly **preliminary**. Telemetry is processed with continuous 10-minute grid alignment (NaN insertion for missing intervals) to guarantee causal, gap-free lag and horizon shifts. Numerical claims are derived strictly from the committed CSV outputs in `experiments/v3_experiments/`.
 
 ---
 
@@ -14,8 +14,11 @@ Evaluated at 1-hour forecast horizon on Split A (temporal holdout with 6-hour em
 | Dataset 1 |                  0.832577 |              0.827679 |            0.588288 |               -0.116763 |              -0.378889 |                0.169373 |              0.602802 |             0.465225 |              0.756808 |          81 |         8 |
 | Dataset 2 |                  0.804186 |              0.781424 |            2.83044  |               -0.600833 |              -6.8493   |                3.37634  |              2.70199  |             1.98793  |              3.44465  |          59 |         5 |
 
-* **What this shows:** On both clusters, S1 LightGBM achieves statistically confirmed, but tiny positive skill over persistence (+0.59% on D1, +0.33% on D2). Server-level 95% CIs are bounded within [0.03%, 1.15%], proving predictive superiority is real but practically marginal.
-* **What this does NOT show:** This does not show double-digit error reductions; thermal inertia accounts for >99% of short-term thermal variance.
+* **What this shows:**
+  * S1 LightGBM achieves modest overall skill over persistence: **+0.59%** on Dataset 1 (0.8277°C vs 0.8326°C MAE) and **+2.83%** on Dataset 2 (0.7814°C vs 0.8042°C MAE).
+  * **Server-level 95% confidence intervals cross zero on both datasets** (Dataset 1: `[-0.38%, +0.17%]`; Dataset 2: `[-6.85%, +3.38%]`). Across individual physical nodes, predictive superiority is **not statistically significant**. Per-server skill exhibits high variance around zero.
+  * Calendar week-level bootstrap 95% confidence intervals are strictly positive (Dataset 1: `[+0.47%, +0.76%]`; Dataset 2: `[+1.99%, +3.44%]`). Week-level resampling aggregates across all servers simultaneously, reflecting slight aggregate stability across time blocks rather than uniform per-server gains. Resampling units use calendar year-week identifiers (`YYYY-Www`) to avoid cross-year aliasing.
+* **What this does NOT show:** This does not show substantial predictive superiority over persistence; thermal inertia accounts for >99% of short-term thermal variance.
 
 ---
 
@@ -32,8 +35,11 @@ Evaluated on strictly identical test rows across feature sets with fans, power, 
 | S4 without Fans & Power (Inlet + Workload + Lags) |           51 |   0.838337 |     1.98687 |            0.288568 |        552672 |
 | S1 (Temperature Lags & Current State Only)        |           36 |   0.83596  |     1.9725  |            0.571309 |        552672 |
 
-* **What this shows:** Removing cooling fans and server power features from full S4 telemetry changes test MAE by less than 0.003°C. Workload and thermal inertia provide all informative variance.
-* **What this does NOT show:** This does not show fan telemetry is useless in real facilities; in this trace, fan curves operate autonomously under firmware PID without facility feedback.
+* **What this shows:**
+  * Removing cooling fan telemetry changes test MAE by less than **0.0001°C** (0.8381°C vs 0.8381°C).
+  * Removing server power telemetry changes test MAE by **0.0003°C** (0.8381°C vs 0.8383°C).
+  * The lean S1 feature set (temperature lags alone, 36 features) achieves **0.8360°C MAE**, slightly outperforming the full 56-feature S4 model (0.8381°C). Workload and thermal inertia provide all informative variance; additional hardware telemetry introduces slight overfitting noise.
+* **What this does NOT show:** This does not demonstrate that fan telemetry is universally uninformative in all facilities. In this trace, fan curves operate autonomously under firmware closed-loop control (BMC/PID) without facility BMS feedback, making fan telemetry reactive rather than predictive.
 
 ---
 
@@ -50,8 +56,10 @@ Split B evaluates complete 5-fold cross-validation across all servers. Split C e
 | Split C (5 Random Seeds) | 1h        |               0.940347 |             0.178617  |      0.936325 |    0.17513   |      0.937577 |    0.176339  |
 | Split C (5 Random Seeds) | 6h        |               1.70954  |             0.218427  |      1.69888  |    0.209155  |      1.73404  |    0.238686  |
 
-* **What this shows:** GroupKFold MAE scales predictably across horizons (10min: 0.43°C, 1h: 0.92°C, 6h: 1.82°C). Split C with 5 random seed draws confirms that spatial holdout variance across seeds is modest (std ~0.10°C to 0.22°C).
-* **What this does NOT show:** This does not show that spatial generalization is trivial; test error increases when predicting entirely unseen physical servers.
+* **What this shows:**
+  * GroupKFold (Split B) mean test MAE scales predictably across horizons: **0.435°C** (10min) $\to$ **0.918°C** (1h) $\to$ **1.817°C** (6h) for persistence, with S1 and S4 models tracking persistence within 0.01°C at all horizons.
+  * Split C with 5 random seed draws confirms that spatial holdout variance across seeds is modest (standard deviation **0.102°C** at 10min, **0.179°C** at 1h, and **0.218°C** at 6h).
+* **What this does NOT show:** This does not show that spatial generalization is trivial; test error on unseen servers is higher than temporal holdout on seen servers (e.g. 1h Split B MAE is ~0.92°C vs Split A ~0.83°C).
 
 ---
 
@@ -74,8 +82,11 @@ Evaluates cold-start adaptation on every physical server in Dataset 1 across Gro
 | residual_offset    |            168 |          81 |    5.0168  |   2.21488 |     4.55175 |      5.51842 |
 | zero_shot          |              0 |          81 |    5.03469 |   1.59049 |     4.71032 |      5.39496 |
 
-* **What this shows:** Zero-shot planning achieves 5.03°C MAE (95% CI: [4.71°C, 5.39°C]) vs Fleet Mean (8.87°C), a 43.2% error reduction. Continued boosting improves performance to 4.87°C at 168 hours. Residual offset improves from 5.52°C (1h) to 5.02°C (168h).
-* **What this does NOT show:** This does not show that longer adaptation budgets monotonically improve performance on every server; individual drift patterns vary across nodes.
+* **What this shows:**
+  * Zero-shot planning achieves **5.03°C MAE** (95% CI: `[4.71°C, 5.39°C]`) compared to the unconditioned fleet mean of **8.87°C**, a **43.2% error reduction**.
+  * Continued boosting improves gradually with local data: from 5.03°C (0h) to **4.87°C** at 168 hours (7 days).
+  * Scalar residual offset improves from **5.52°C** (1h) to **5.02°C** (168h).
+* **What this does NOT show:** This does not show that longer adaptation budgets monotonically improve accuracy across every server; individual drift patterns vary across physical servers.
 
 ---
 
@@ -97,14 +108,17 @@ Source model trained on Dell PowerEdge R840 (Cluster 1) adapted to Dell PowerEdg
 |            168 | residual_offset    |    3.0332  |     1.70417 |      4.75068 |
 |            168 | continued_boosting |    6.04999 |     2.69669 |     11.7058  |
 
-* **What this shows:** Zero-shot transfer from C1 to C2 achieves 6.85°C MAE. Local residual offset adaptation rapidly cuts error down to 3.16°C at 6 hours and 2.92°C at 72 hours, demonstrating that global workload physics transfer well once local thermal baseline offsets are calibrated.
-* **What this does NOT show:** This does not show thermodynamic equivalence; chassis impedance differences require local offset alignment.
+* **What this shows:**
+  * Zero-shot cross-cluster planning exhibits substantial uncertainty: mean MAE is **6.85°C** with a wide 95% bootstrap CI of `[2.92°C, 13.47°C]`.
+  * Local residual offset adaptation rapidly corrects cluster baseline bias, reducing error to **3.16°C** (6h, CI: `[2.13°C, 4.30°C]`) and **2.92°C** (72h, CI: `[1.64°C, 4.81°C]`).
+  * Continued boosting underperforms residual offset (6.05°C at 168h) because tree split constraints on small adaptation slices limit parameter updates.
+* **What this does NOT show:** This does NOT prove universal or invariant physical transfer. Chassis airflow impedance, thermal mass, and cooling paths differ fundamentally between R840 and C6320. The wide confidence intervals reflect significant inter-server heterogeneity.
 
 ---
 
 ## 6. Random K-Fold vs GroupKFold on Identical Telemetry Rows
 
-Direct comparison on strictly identical test rows to measure data leakage inflation from random temporal splitting.
+Direct comparison on strictly identical test rows to evaluate the impact of evaluation splitting strategy.
 
 | feature_set   | regime     |   random_kfold_mae |   group_kfold_mae |   leakage_underestimation_pct |
 |:--------------|:-----------|-------------------:|------------------:|------------------------------:|
@@ -113,8 +127,11 @@ Direct comparison on strictly identical test rows to measure data leakage inflat
 | S3            | planning   |           3.75984  |          4.61529  |                     18.5351   |
 | S4            | monitoring |           0.905846 |          0.910806 |                      0.544595 |
 
-* **What this shows:** In planning models (S2, S3), Random K-Fold artificially deflates error by 17.6% to 18.5% compared to GroupKFold by leaking temporal autocorrelation across adjacent 10-minute records. In monitoring models (S1, S4), persistence anchoring restricts the leakage gap to <0.6%.
-* **What this does NOT show:** This does not imply GroupKFold is pessimistic; GroupKFold correctly reflects production deployment to new, unseen server hardware.
+* **What this shows:**
+  * In monitoring models (S1, S4), where current temperature is available, the difference between row-random and server-grouped evaluation is minimal: **0.24%** for S1 (0.9153°C vs 0.9176°C) and **0.54%** for S4 (0.9058°C vs 0.9108°C), because autoregressive persistence anchors predictions.
+  * In planning models (S2, S3), row-random splitting yields substantially lower error than GroupKFold: **17.60%** lower for S2 (4.0862°C vs 4.9588°C) and **18.54%** lower for S3 (3.7598°C vs 4.6153°C).
+  * This difference reflects both temporal autocorrelation leakage across adjacent time steps and spatial heterogeneity across distinct server hardware.
+* **What this does NOT show:** This does not imply GroupKFold is unnecessarily pessimistic; GroupKFold correctly reflects operational deployment to new, unseen server hardware.
 
 ---
 
@@ -128,5 +145,8 @@ Assessing whether S1's early convergence (~5 trees) at learning rate 0.05 is an 
 |           0.01  |               27 |       0.823018 |   0.827555 |     1.94702 |          0.603188 |               0.832577 |
 |           0.005 |               49 |       0.822938 |   0.827652 |     1.95001 |          0.591532 |               0.832577 |
 
-* **What this shows:** Reducing learning rate from 0.05 to 0.005 extends tree growth from 5 trees to 49 trees, with validation loss stabilizing at 0.823°C. Test MAE shifts minimally from 0.8277°C to 0.8276°C (skill moves from +0.59% to +0.60%).
+* **What this shows:**
+  * Reducing the learning rate from 0.05 to 0.005 increases tree count by nearly an order of magnitude (5 $\to$ 27 $\to$ 49 trees).
+  * However, test MAE shifts by less than **0.00013°C** (0.827679°C $\to$ 0.827555°C $\to$ 0.827652°C), and skill scores remain essentially unchanged (+0.588% $\to$ +0.603% $\to$ +0.592%).
+  * Early convergence under LR=0.05 is not premature termination; rather, the gradient update rapidly plateaus because the delta target $\Delta T$ has low variance around persistence. The lowest learning rate is **not practically superior**.
 * **What this does NOT show:** This does not change the core substantive finding: monitoring models remain anchored to thermal persistence regardless of gradient step size.

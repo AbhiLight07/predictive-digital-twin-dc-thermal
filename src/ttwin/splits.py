@@ -234,3 +234,140 @@ def verify_no_future_leak(
 ) -> bool:
     """Check that max train time < min test time."""
     return train_df[time_col].max() < test_df[time_col].min()
+
+
+def partition_validation_conformal(
+    val_df: pd.DataFrame,
+    select_ratio: float = 0.5,
+    time_col: str = "Time",
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Chronologically partition a validation block into disjoint model-selection and calibration sets.
+
+    Ensures model selection (e.g. early stopping, hyperparameter tuning) and conformal residual
+    calibration use strictly disjoint observations.
+
+    Args:
+        val_df: Validation DataFrame spanning [val_start, val_end).
+        select_ratio: Fraction of validation duration allocated to model selection (default 0.5).
+        time_col: Column containing timestamps.
+
+    Returns:
+        (val_select_df, val_cal_df): Disjoint DataFrames ordered in time.
+    """
+    times = val_df[time_col].sort_values()
+    if len(times) == 0:
+        return val_df.copy(), val_df.copy()
+    min_time, max_time = times.min(), times.max()
+    duration = max_time - min_time
+    split_time = min_time + duration * select_ratio
+
+    val_select = val_df[val_df[time_col] < split_time].copy()
+    val_cal = val_df[val_df[time_col] >= split_time].copy()
+    return val_select, val_cal
+
+
+def split_strict_4way(
+    df: pd.DataFrame,
+    time_col: str = "Time",
+    server_col: str = "Series",
+    train_frac: float = 0.70,
+    val_select_frac: float = 0.05,
+    val_cal_frac: float = 0.05,
+    holdout_frac: float = 0.20,
+    embargo_steps: int = 36,
+    seed: int = 42,
+    stratify_col: Optional[str] = "CPU_Load",
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Split C with 4-way disjoint chronological partition for conformal calibration independence.
+
+    Partitions:
+        1. Train: Seen servers, earlier time [min_time, train_end).
+        2. Val-Select: Seen servers, model-selection window [train_end, select_end).
+           Used strictly for early stopping, model selection, and variance scaling fit.
+        3. Val-Cal: Seen servers, calibration window [select_end, val_end).
+           Used strictly for computing conformal nonconformity scores and quantiles.
+        4. Test: Unseen servers, final time window [val_end + embargo_duration, max_time].
+           Used strictly for final evaluation.
+
+    Guarantees:
+        - Strict chronological order: train < val_select < val_cal < test.
+        - Preserves the 6-hour embargo gap (embargo_steps * 10 min) before test.
+        - Zero timestamp overlap across all partitions.
+        - Calibration data never overlaps with model fitting or early stopping.
+        - Protocol fractions preserved: train_frac=0.70, total val=(val_select_frac + val_cal_frac)=0.10.
+    """
+    df_clean = df.copy()
+    df_clean[server_col] = df_clean[server_col].astype(str).str.strip()
+    servers = get_server_list(df_clean, server_col)
+    n_holdout = max(1, int(len(servers) * holdout_frac))
+    rng = np.random.RandomState(seed)
+
+    train_servers, test_servers = _stratified_holdout(
+        df_clean, n_holdout, rng, server_col, stratify_col
+    )
+
+    times = df_clean[time_col].sort_values()
+    min_time, max_time = times.min(), times.max()
+    total_duration = max_time - min_time
+
+    train_end = min_time + total_duration * train_frac
+    select_end = train_end + total_duration * val_select_frac
+    val_end = select_end + total_duration * val_cal_frac
+    embargo_duration = pd.Timedelta(minutes=10 * embargo_steps)
+    test_start = val_end + embargo_duration
+
+    train = df_clean[(df_clean[server_col].isin(train_servers)) & (df_clean[time_col] < train_end)].copy()
+    val_select = df_clean[(df_clean[server_col].isin(train_servers)) & (df_clean[time_col] >= train_end) & (df_clean[time_col] < select_end)].copy()
+    val_cal = df_clean[(df_clean[server_col].isin(train_servers)) & (df_clean[time_col] >= select_end) & (df_clean[time_col] < val_end)].copy()
+    test = df_clean[(df_clean[server_col].isin(test_servers)) & (df_clean[time_col] >= test_start)].copy()
+
+    return train, val_select, val_cal, test
+
+
+def split_chronological_4way(
+    df: pd.DataFrame,
+    time_col: str = "Time",
+    train_frac: float = 0.70,
+    val_select_frac: float = 0.05,
+    val_cal_frac: float = 0.05,
+    embargo_steps: int = 36,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Split A with 4-way disjoint chronological partition for conformal calibration independence."""
+    times = df[time_col].sort_values()
+    min_time, max_time = times.min(), times.max()
+    total_duration = max_time - min_time
+
+    train_end = min_time + total_duration * train_frac
+    select_end = train_end + total_duration * val_select_frac
+    val_end = select_end + total_duration * val_cal_frac
+    embargo_duration = pd.Timedelta(minutes=10 * embargo_steps)
+    test_start = val_end + embargo_duration
+
+    train = df[df[time_col] < train_end].copy()
+    val_select = df[(df[time_col] >= train_end) & (df[time_col] < select_end)].copy()
+    val_cal = df[(df[time_col] >= select_end) & (df[time_col] < val_end)].copy()
+    test = df[df[time_col] >= test_start].copy()
+
+    return train, val_select, val_cal, test
+
+
+def verify_no_timestamp_overlap(
+    df1: pd.DataFrame, df2: pd.DataFrame, time_col: str = "Time"
+) -> bool:
+    """Check that two DataFrames share zero common timestamps."""
+    times1 = set(df1[time_col].unique())
+    times2 = set(df2[time_col].unique())
+    return len(times1 & times2) == 0
+
+
+def verify_embargo_enforced(
+    df_early: pd.DataFrame,
+    df_late: pd.DataFrame,
+    expected_embargo_steps: int = 36,
+    step_minutes: int = 10,
+    time_col: str = "Time",
+) -> bool:
+    """Check that the gap between max(df_early) and min(df_late) is >= expected embargo duration."""
+    gap = df_late[time_col].min() - df_early[time_col].max()
+    expected_duration = pd.Timedelta(minutes=expected_embargo_steps * step_minutes)
+    return gap >= expected_duration

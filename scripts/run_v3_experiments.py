@@ -13,6 +13,9 @@ Implements the missing Tier B experiments:
 import sys
 from pathlib import Path
 import json
+import argparse
+import subprocess
+from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 import lightgbm as lgb
@@ -20,6 +23,9 @@ from sklearn.model_selection import KFold
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT))
+
+from scripts.generate_results_v3_doc import build_markdown_content
 
 from ttwin.io import load_parquet
 from ttwin.features import build_features, get_feature_set
@@ -87,9 +93,10 @@ def run_exp1_bootstrap(d1_feat, d2_feat):
         server_stats["skill"] = 1.0 - (server_stats["mae_lgb"] / server_stats["mae_pers"])
         ci_srv_low, ci_srv_high = bootstrap_ci(server_stats["skill"].values)
 
-        # Per-week paired bootstrap
-        test_clean["week"] = test_clean["Time"].dt.isocalendar().week
-        week_stats = test_clean.groupby("week").agg(mae_pers=("err_pers", "mean"), mae_lgb=("err_lgb", "mean"))
+        # Per-week paired bootstrap (using year-week to prevent cross-year collision)
+        iso_cal = test_clean["Time"].dt.isocalendar()
+        test_clean["year_week"] = iso_cal.year.astype(str) + "-W" + iso_cal.week.astype(str).str.zfill(2)
+        week_stats = test_clean.groupby("year_week").agg(mae_pers=("err_pers", "mean"), mae_lgb=("err_lgb", "mean"))
         week_stats["skill"] = 1.0 - (week_stats["mae_lgb"] / week_stats["mae_pers"])
         ci_wk_low, ci_wk_high = bootstrap_ci(week_stats["skill"].values)
 
@@ -545,112 +552,229 @@ def run_exp7_learning_rates(d1_feat):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Main execution & Markdown synthesis
+# Reproducibility Controls & Main Execution
 # ─────────────────────────────────────────────────────────────────────────────
-def main():
-    d1 = load_data("dataset1")
-    d2 = load_data("dataset2")
+def get_git_info():
+    """Retrieve git commit and dirty status safely."""
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=str(ROOT), stderr=subprocess.DEVNULL
+        ).decode("utf-8").strip()
+        status = subprocess.check_output(
+            ["git", "status", "--porcelain"], cwd=str(ROOT), stderr=subprocess.DEVNULL
+        ).decode("utf-8").strip()
+        is_dirty = len(status) > 0
+        return commit, is_dirty
+    except Exception:
+        return "unknown", False
 
-    print("Building features for Dataset 1...")
-    d1_feat = build_features(d1, horizons=[1, 6, 36], lags=[1, 2, 3, 6, 12], rolling_windows=[6, 12, 36])
-    print("Building features for Dataset 2...")
-    d2_feat = build_features(d2, horizons=[1, 6, 36], lags=[1, 2, 3, 6, 12], rolling_windows=[6, 12, 36])
 
-    t1 = pd.read_csv(OUT_DIR / "e1_bootstrap_summary.csv") if (OUT_DIR / "e1_bootstrap_summary.csv").exists() else run_exp1_bootstrap(d1_feat, d2_feat)
-    t2 = pd.read_csv(OUT_DIR / "sensor_ablation.csv") if (OUT_DIR / "sensor_ablation.csv").exists() else run_exp2_sensor_ablation(d1_feat)
-    t3 = run_exp3_splits_bc_horizons(d1_feat)
-    t4 = run_exp4_planning_adaptation_all_folds(d1_feat)
-    t5 = run_exp5_cross_cluster_adaptation(d1_feat, d2_feat)
-    t6 = run_exp6_random_vs_group(d1_feat)
-    t7 = run_exp7_learning_rates(d1_feat)
+def parse_args(args=None):
+    parser = argparse.ArgumentParser(
+        description="Run or synthesize v3 comprehensive experiments with explicit reproducibility controls."
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--reuse-existing",
+        action="store_true",
+        help="Explicitly reuse existing CSV result files if present. Missing outputs will be computed.",
+    )
+    group.add_argument(
+        "--force",
+        action="store_true",
+        help="Force recomputation of all experiments from scratch, overwriting existing CSVs.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Check existing experiment outputs and report planned actions without modifying files.",
+    )
+    return parser.parse_args(args)
 
-    # Synthesize docs/results_v3.md
-    md_content = f"""# Results v3 — Comprehensive Gap-Corrected Experiments
 
-> [!IMPORTANT]
-> All results in this report are strictly **preliminary**. Telemetry is processed with continuous 10-minute grid alignment (NaN insertion for missing intervals) to guarantee causal, gap-free lag and horizon shifts.
+EXPERIMENT_CATALOG = [
+    {
+        "id": "e1_bootstrap",
+        "name": "Paired Bootstrap (E1)",
+        "file": "e1_bootstrap_summary.csv",
+        "runner": lambda d1, d2: run_exp1_bootstrap(d1, d2),
+        "needs_d2": True,
+    },
+    {
+        "id": "e2_sensor_ablation",
+        "name": "Sensor Hardware Feature Ablation",
+        "file": "sensor_ablation.csv",
+        "runner": lambda d1, d2: run_exp2_sensor_ablation(d1),
+        "needs_d2": False,
+    },
+    {
+        "id": "e3_splits_bc",
+        "name": "Splits B & C Horizons",
+        "file": "split_b_and_c_horizons.csv",
+        "runner": lambda d1, d2: run_exp3_splits_bc_horizons(d1),
+        "needs_d2": False,
+    },
+    {
+        "id": "e4_planning_adaptation",
+        "name": "Planning Adaptation Across All 5 Folds",
+        "file": "planning_adaptation_all_folds.csv",
+        "runner": lambda d1, d2: run_exp4_planning_adaptation_all_folds(d1),
+        "needs_d2": False,
+    },
+    {
+        "id": "e5_cross_cluster",
+        "name": "Cross-Cluster Hardware Adaptation (C1 -> C2)",
+        "file": "cross_cluster_adaptation.csv",
+        "runner": lambda d1, d2: run_exp5_cross_cluster_adaptation(d1, d2),
+        "needs_d2": True,
+    },
+    {
+        "id": "e6_random_vs_group",
+        "name": "Random KFold vs GroupKFold on Identical Rows",
+        "file": "random_vs_group_identical_rows.csv",
+        "runner": lambda d1, d2: run_exp6_random_vs_group(d1),
+        "needs_d2": False,
+    },
+    {
+        "id": "e7_learning_rates",
+        "name": "S1 LightGBM Learning Rate & Early Stopping Study",
+        "file": "s1_learning_rate_study.csv",
+        "runner": lambda d1, d2: run_exp7_learning_rates(d1),
+        "needs_d2": False,
+    },
+]
 
----
 
-## 1. Paired Bootstrap Analysis for Skill vs Persistence (E1)
+def main(argv=None):
+    args = parse_args(argv)
+    git_commit, git_dirty = get_git_info()
 
-Evaluated at 1-hour forecast horizon on Split A (temporal holdout with 6-hour embargo). 95% bootstrap confidence intervals computed over $B=2,000$ resamples across physical servers and across calendar weeks.
+    print(f"\n{'='*70}\nV3 EXPERIMENTS RUNNER")
+    print(f"Git commit: {git_commit} {'(dirty)' if git_dirty else '(clean)'}")
+    print(f"Output directory: {OUT_DIR}")
+    print(f"{'='*70}")
 
-{t1.to_markdown(index=False)}
+    existing_files = {exp["file"]: (OUT_DIR / exp["file"]).exists() for exp in EXPERIMENT_CATALOG}
+    num_existing = sum(existing_files.values())
 
-* **What this shows:** On both clusters, S1 LightGBM achieves statistically confirmed, but tiny positive skill over persistence (+0.59% on D1, +0.33% on D2). Server-level 95% CIs are bounded within [0.03%, 1.15%], proving predictive superiority is real but practically marginal.
-* **What this does NOT show:** This does not show double-digit error reductions; thermal inertia accounts for >99% of short-term thermal variance.
+    # Safe default: prevent silent overwrite or silent reuse
+    if not args.reuse_existing and not args.force and not args.dry_run:
+        if num_existing > 0:
+            print("\n[SAFEGUARD] Existing experiment results detected in output directory:")
+            for exp in EXPERIMENT_CATALOG:
+                fn = exp["file"]
+                st = "FOUND" if existing_files[fn] else "MISSING"
+                print(f"  - {fn:35s}: {st}")
+            print("\nTo ensure reproducibility and prevent unintended recomputations, choose an explicit mode:")
+            print("  python scripts/run_v3_experiments.py --reuse-existing")
+            print("      Reuse valid existing CSVs and synthesize docs/results_v3.md.")
+            print("  python scripts/run_v3_experiments.py --force")
+            print("      Recompute all experiments from scratch and overwrite existing CSVs.")
+            print("  python scripts/run_v3_experiments.py --dry-run")
+            print("      Inspect execution plan without computing or writing files.\n")
+            return 1
 
----
+    if args.dry_run:
+        print("\n[DRY RUN] Inspection of experiment outputs:")
+        for exp in EXPERIMENT_CATALOG:
+            fn = exp["file"]
+            p = OUT_DIR / fn
+            status = f"EXISTS ({p.stat().st_size} bytes)" if p.exists() else "NOT FOUND"
+            action = "WOULD REUSE" if (p.exists() and not args.force) else "WOULD COMPUTE"
+            print(f"  - {exp['name']:48s} -> {fn:35s}: {status} | {action}")
+        return 0
 
-## 2. Sensor Ablation: Isolating Hardware Features (Dataset 1, 1-hour Horizon)
+    mode_label = "FORCE RECOMPUTE" if args.force else "REUSE EXISTING"
+    print(f"\nExecution Mode: {mode_label}")
 
-Evaluated on strictly identical test rows across feature sets with fans, power, inlet temperature, and thermal lags.
+    # Determine which experiments need computation
+    needs_compute = []
+    for exp in EXPERIMENT_CATALOG:
+        fn = exp["file"]
+        p = OUT_DIR / fn
+        if args.force or not p.exists():
+            needs_compute.append(exp)
+            status_desc = "WILL RECOMPUTE (forced)" if args.force else "WILL COMPUTE (missing file)"
+        else:
+            status_desc = f"REUSING existing CSV (modified: {datetime.fromtimestamp(p.stat().st_mtime, timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')})"
+        print(f"  * {exp['file']:35s}: {status_desc}")
 
-{t2.to_markdown(index=False)}
+    # Lazy-load parquet and feature engineering ONLY if at least one experiment needs computation
+    d1_feat, d2_feat = None, None
+    if needs_compute:
+        print(f"\nLoading raw datasets to execute {len(needs_compute)} experiment(s)...")
+        needs_d1 = True
+        needs_d2 = any(exp["needs_d2"] for exp in needs_compute)
 
-* **What this shows:** Removing cooling fans and server power features from full S4 telemetry changes test MAE by less than 0.003°C. Workload and thermal inertia provide all informative variance.
-* **What this does NOT show:** This does not show fan telemetry is useless in real facilities; in this trace, fan curves operate autonomously under firmware PID without facility feedback.
+        if needs_d1:
+            print("Building features for Dataset 1...")
+            d1 = load_data("dataset1")
+            d1_feat = build_features(d1, horizons=[1, 6, 36], lags=[1, 2, 3, 6, 12], rolling_windows=[6, 12, 36])
+        if needs_d2:
+            print("Building features for Dataset 2...")
+            d2 = load_data("dataset2")
+            d2_feat = build_features(d2, horizons=[1, 6, 36], lags=[1, 2, 3, 6, 12], rolling_windows=[6, 12, 36])
 
----
+    experiment_status = {}
+    results = {}
 
-## 3. Split B (GroupKFold) and Split C across Horizons (with 5 Random Server Draws)
+    for exp in EXPERIMENT_CATALOG:
+        fn = exp["file"]
+        p = OUT_DIR / fn
+        if args.force or not p.exists():
+            print(f"\n>>> Running {exp['name']}...")
+            res_df = exp["runner"](d1_feat, d2_feat)
+            results[exp["id"]] = res_df
+            experiment_status[fn] = "COMPUTED"
+        else:
+            print(f"Reading existing {fn}...")
+            results[exp["id"]] = pd.read_csv(p)
+            experiment_status[fn] = "REUSED"
 
-Split B evaluates complete 5-fold cross-validation across all 76 servers. Split C evaluates joint spatiotemporal holdout across 5 distinct random seed draws (seeds: 42, 123, 456, 789, 1024).
+    # Save execution manifest for complete audit trail
+    manifest = {
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "git_commit": git_commit,
+        "git_dirty": git_dirty,
+        "cli_mode": "force" if args.force else "reuse-existing",
+        "protocol_frozen": True,
+        "random_seeds": {
+            "bootstrap_seed": 42,
+            "split_b_seed": 42,
+            "split_c_seeds": [42, 123, 456, 789, 1024],
+            "lightgbm_seed": 42,
+        },
+        "dataset_info": {
+            "dataset1": "Melbourne Cloud Cluster 1 (Dell PowerEdge R840)",
+            "dataset2": "Melbourne Cloud Cluster 2 (Dell PowerEdge C6320)",
+            "frequency": "10min",
+            "horizons_steps": [1, 6, 36],
+            "lags": [1, 2, 3, 6, 12],
+            "rolling_windows": [6, 12, 36],
+            "embargo_steps": 36,
+        },
+        "experiment_status": experiment_status,
+    }
+    manifest_path = OUT_DIR / "execution_manifest.json"
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2)
+    print(f"\nExecution metadata recorded in {manifest_path}")
 
-{t3.to_markdown(index=False)}
-
-* **What this shows:** GroupKFold MAE scales predictably across horizons (10min: 0.44°C, 1h: 0.88°C, 6h: 1.63°C). Split C with 5 random seed draws confirms that spatial holdout variance across seeds is modest (std ~0.04°C).
-* **What this does NOT show:** This does not show that spatial generalization is trivial; test error increases by ~15% when predicting entirely unseen physical servers.
-
----
-
-## 4. Fleet-Wide Planning Adaptation Across All 5 Folds ($N=76$ Physical Servers)
-
-Evaluates cold-start adaptation on every physical server in Dataset 1 across GroupKFold splits with local training budgets from 0 to 168 hours.
-
-{t4.to_markdown(index=False)}
-
-* **What this shows:** Zero-shot planning achieves 4.88°C MAE (95% CI: [4.42°C, 5.38°C]) vs Fleet Mean (8.29°C), a 41.1% gain. Continued boosting plateaus at 4.79°C at 6 hours. Residual offset remains stable at ~5.4°C.
-* **What this does NOT show:** This does not show that longer adaptation budgets monotonically improve performance; seasonal drift between adaptation and test windows limits scalar offset efficacy.
-
----
-
-## 5. Cross-Cluster Hardware Adaptation (Cluster 1 $\\rightarrow$ Cluster 2)
-
-Source model trained on Dell PowerEdge R840 (Cluster 1) adapted to Dell PowerEdge C6320 (Cluster 2) target servers.
-
-{t5.to_markdown(index=False)}
-
-* **What this shows:** Zero-shot transfer from C1 to C2 achieves 4.88°C MAE (transfer penalty of only +0.66°C over native 4.22°C). Local adaptation with 6h of C2 telemetry reduces error to 4.76°C.
-* **What this does NOT show:** This does not show thermodynamic equivalence; chassis impedance differences remain unmodeled.
-
----
-
-## 6. Random K-Fold vs GroupKFold on Identical Telemetry Rows
-
-Direct comparison on strictly identical test rows to measure data leakage inflation from random temporal splitting.
-
-{t6.to_markdown(index=False)}
-
-* **What this shows:** Random K-Fold artificially deflates error by 14.8% to 19.3% in monitoring models and 32.4% in planning models by leaking temporal autocorrelation across adjacent 10-minute records.
-* **What this does NOT show:** This does not imply GroupKFold is pessimistic; GroupKFold correctly reflects production deployment to new, unseen server hardware.
-
----
-
-## 7. S1 LightGBM Learning Rate & Early Stopping Convergence
-
-Assessing whether S1's early convergence (~5 trees) at learning rate 0.05 is an artifact of step size.
-
-{t7.to_markdown(index=False)}
-
-* **What this shows:** Reducing learning rate from 0.05 to 0.005 extends tree growth from 5 trees to 48 trees, with validation loss improving from 0.823°C to 0.821°C. Test MAE shifts from 0.8277°C to 0.8269°C (skill moves from +0.59% to +0.68%).
-* **What this does NOT show:** This does not change the core substantive finding: monitoring models remain anchored to thermal persistence regardless of gradient step size.
-"""
+    # Synthesize docs/results_v3.md using shared verified narrative builder
+    md_content = build_markdown_content(
+        results["e1_bootstrap"],
+        results["e2_sensor_ablation"],
+        results["e3_splits_bc"],
+        results["e4_planning_adaptation"],
+        results["e5_cross_cluster"],
+        results["e6_random_vs_group"],
+        results["e7_learning_rates"],
+    )
     with open(ROOT / "docs" / "results_v3.md", "w", encoding="utf-8") as f:
         f.write(md_content)
-    print("\nSaved docs/results_v3.md successfully.")
+    print("Saved docs/results_v3.md successfully.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

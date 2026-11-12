@@ -30,15 +30,15 @@ from ttwin.eval import load_all_metrics, compute_skill_scores
 EXPERIMENTS_DIR = ROOT / "experiments"
 INTERIM_DIR = ROOT / "data" / "interim"
 
-st.warning("⚠️ PRELIMINARY — offline prototype. Results come from pre-computed CSV files.")
-
-# ── Page config ───────────────────────────────────────────────────────────────
+# ── Page config (MUST be the first Streamlit command) ────────────────────────
 st.set_page_config(
     page_title="DC Thermal Twin v2",
     page_icon="🌡️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+st.warning("⚠️ PRELIMINARY — offline prototype. Results come from pre-computed CSV files.")
 
 # ── Custom CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -162,9 +162,10 @@ elif page == "🔮 What-If Simulator (Planning)":
 
     st.markdown("""
     <div class="disclaimer-box">
-        <strong>⚠️ PREDICTIVE, CORRELATIONAL — NOT CAUSAL</strong><br>
-        This what-if simulator projects expected CPU temperature changes based on historical statistical correlations
-        under workload variations (CPU load, RAM, VM count). It is <strong>NOT an interventional causal model</strong>
+        <strong>⚠️ ILLUSTRATIVE PROJECTION — SIMPLIFIED DEMONSTRATION HEURISTIC</strong><br>
+        This what-if simulator demonstrates UI interaction using an <strong>illustrative linear correlation formula</strong>
+        (derived from exploratory S2 feature weights: 45°C + 0.28*CPU + 0.015*RAM + 0.1*VMs).
+        It is <strong>NOT a live trained model checkpoint inference</strong>, is not an interventional causal model,
         and does not model active cooling dynamics or fan controller responses.
     </div>
     """, unsafe_allow_html=True)
@@ -197,17 +198,20 @@ elif page == "🔮 What-If Simulator (Planning)":
         color = "inverse" if delta_temp > 0 else "normal"
         st.metric("Predicted Temp Shift", f"{delta_temp:+.2f} °C", f"{cpu_delta:+.0f}% ΔCPU", delta_color=color)
 
-    # Uncertainty band around planning projection (+/- 4.5°C based on S2 MAE)
-    st.caption("Planning uncertainty: 90% conformal interval spans approximately ±4.8°C around workload-only projections.")
+    # Uncertainty band around planning projection (+/- 4.8°C based on S2 MAE)
+    st.caption("Planning uncertainty: Illustrative ±4.8°C band shown (matches typical S2 planning MAE scale in offline experiments).")
 
 
 # ── PAGE 3: Historical Replay & Risk Monitor ─────────────────────────────────
 elif page == "⏱️ Historical Replay & Risk":
-    st.title("⏱️ Historical Replay & Real-Time Risk Indicator")
+    st.title("⏱️ Historical Replay & Offline Thermal Risk Monitor")
     st.markdown("""
-    Scrub through historical telemetry step-by-step. The **Risk Indicator** continuously assesses
-    thermal safety by evaluating the **90% Conformal Interval Upper Bound** against the critical safety threshold ($75.0^\circ\text{C}$).
+    Scrub through historical telemetry step-by-step. The **Risk Indicator** assesses
+    offline thermal safety margins by comparing the **90% Conformal Interval Upper Bound**
+    against the critical safety threshold ($75.0^\circ\text{C}$).
     """)
+
+    st.info("ℹ️ **ILLUSTRATIVE REPLAY PROTOTYPE**: Predictions and interval bounds in this scrubber evaluate an illustrative demonstration function (q_hat = 1.80°C with sinusoidal perturbation). These are synthetic display values for UI prototyping, not verified offline model inferences. This prototype has no live telemetry feed and no physical actuator connection.")
 
     ds_dir = INTERIM_DIR / "dataset1"
     servers = sorted([f.stem for f in ds_dir.glob("*.parquet") if not f.stem.startswith("_")]) if ds_dir.exists() else []
@@ -240,7 +244,7 @@ elif page == "⏱️ Historical Replay & Risk":
         if upper_bound >= CRITICAL_THRESHOLD:
             risk_status = "CRITICAL RISK"
             risk_class = "risk-badge-critical"
-            risk_msg = f"Upper bound ({upper_bound:.1f}°C) exceeds critical threshold ({CRITICAL_THRESHOLD}°C)! Cooling throttle required."
+            risk_msg = f"Upper bound ({upper_bound:.1f}°C) exceeds critical threshold ({CRITICAL_THRESHOLD}°C). Informational alert — prototype has no physical cooling actuator connection."
         elif upper_bound >= ELEVATED_THRESHOLD:
             risk_status = "ELEVATED"
             risk_class = "risk-badge-elevated"
@@ -275,10 +279,10 @@ elif page == "⏱️ Historical Replay & Risk":
         # Current point and prediction interval
         ax.scatter([cur_time], [cur_temp], color="#ffffff", s=60, zorder=5)
         ax.errorbar([cur_time], [pred_temp], yerr=[[pred_temp - lower_bound], [upper_bound - pred_temp]],
-                    fmt='o', color="#ffb74d", capsize=5, label="1h Conformal Band", zorder=6)
+                    fmt='o', color="#ffb74d", capsize=5, label="Illustrative 1h Conformal Band (q_hat=1.8°C)", zorder=6)
 
         ax.set_ylabel("Temperature (°C)")
-        ax.set_title(f"Telemetry Trajectory with Uncertainty Envelope — {sel_server}")
+        ax.set_title(f"Historical Telemetry Trajectory with Illustrative Uncertainty Envelope — {sel_server}")
         ax.legend(loc="upper left", fontsize=8)
         ax.grid(True, alpha=0.2)
         st.pyplot(fig)

@@ -2,9 +2,6 @@
 import pytest
 import pandas as pd
 import numpy as np
-import sys
-
-sys.path.insert(0, "d:/mainel5/src")
 
 from ttwin.features import (
     add_lag_features, add_rolling_features, create_target,

@@ -2,9 +2,6 @@
 import pytest
 import numpy as np
 import pandas as pd
-import sys
-
-sys.path.insert(0, "d:/mainel5/src")
 
 from ttwin.metrics import mae, rmse, skill_score_vs_persistence, per_server_metrics, summarize_per_server
 

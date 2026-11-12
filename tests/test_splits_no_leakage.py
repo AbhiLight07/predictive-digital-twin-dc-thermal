@@ -2,9 +2,6 @@
 import pytest
 import pandas as pd
 import numpy as np
-import sys
-
-sys.path.insert(0, "d:/mainel5/src")
 
 from ttwin.splits import (
     split_chronological, split_leave_servers_out, split_strict,

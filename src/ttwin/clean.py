@@ -29,9 +29,15 @@ def fill_missing_timestamps(
 
     Missing rows are inserted with NaN values.
     """
+    df = df.copy()
+    if not pd.api.types.is_datetime64_any_dtype(df[time_col]):
+        df[time_col] = pd.to_datetime(df[time_col])
+
     result = []
-    for server, group in df.groupby(host_col):
-        group = group.set_index(time_col)
+    for server, group in df.groupby(host_col, sort=False):
+        group = group.drop_duplicates(subset=[time_col]).set_index(time_col).sort_index()
+        if len(group) == 0:
+            continue
         full_idx = pd.date_range(group.index.min(), group.index.max(), freq=freq)
         group = group.reindex(full_idx)
         group[host_col] = server

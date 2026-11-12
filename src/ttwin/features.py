@@ -3,6 +3,7 @@
 import pandas as pd
 import numpy as np
 from typing import List
+from ttwin.clean import fill_missing_timestamps
 
 
 def add_calendar_features(df: pd.DataFrame, time_col: str = "Time") -> pd.DataFrame:
@@ -162,6 +163,7 @@ def build_features(
     if rolling_windows is None:
         rolling_windows = [6, 12, 36]
 
+    df = fill_missing_timestamps(df, host_col=server_col, time_col=time_col, freq="10min")
     df = compute_effective_cpu_temp(df)
     df = add_calendar_features(df, time_col)
 

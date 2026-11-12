@@ -46,7 +46,12 @@ from ttwin.features import build_features, get_feature_set
 from ttwin.splits import split_strict
 from ttwin.metrics import mae
 
-OUT_DIR = ROOT / "experiments" / "v2_uncertainty"
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--out-prefix", default="v2", help="Prefix for output experiment directory, e.g. v2 or v3")
+args, _ = parser.parse_known_args()
+
+OUT_DIR = ROOT / "experiments" / f"{args.out_prefix}_uncertainty"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 DATA_DIR = ROOT / "data" / "interim"
 

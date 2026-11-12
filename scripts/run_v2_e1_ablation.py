@@ -51,7 +51,12 @@ from ttwin.splits import (
 )
 from ttwin.metrics import mae, rmse, skill_score_vs_persistence
 
-OUT_DIR = ROOT / "experiments" / "v2_ablation"
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--out-prefix", default="v2", help="Prefix for output experiment directory, e.g. v2 or v3")
+args, _ = parser.parse_known_args()
+
+OUT_DIR = ROOT / "experiments" / f"{args.out_prefix}_ablation"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 DATA_DIR = ROOT / "data" / "interim"

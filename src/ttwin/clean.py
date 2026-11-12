@@ -93,7 +93,8 @@ def clean_dataset(
     time_col: str = "Time",
     freq: str = "10min",
 ) -> pd.DataFrame:
-    """Full cleaning pipeline: parse time, dedup, clip temps."""
+    """Full cleaning pipeline: strip host names, parse time, dedup, clip temps."""
+    df = strip_host_names(df, host_col)
     df = parse_timestamps(df, time_col)
     df = remove_duplicate_timestamps(df, host_col, time_col)
     df = clip_temperature(df)

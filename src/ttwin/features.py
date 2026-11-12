@@ -134,7 +134,7 @@ def get_feature_set(feature_set: str, available_columns: List[str]) -> List[str]
         features = [c for c in base if c in available_columns]
         features += current_temp_cols
         features += [c for c in temp_lag_cols if c in available_columns]
-        return features
+        return list(dict.fromkeys(features))
     else:
         raise ValueError(f"Unknown feature set: {feature_set}")
 

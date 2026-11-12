@@ -123,3 +123,25 @@ def test_feature_set_s2_excludes_power_and_fan():
     assert "Power" not in feats
     assert "Fan_speed1" not in feats
     assert "CPU_Load" in feats
+
+
+def test_feature_set_s4_deduplicates_and_preserves_order():
+    cols = [
+        "CPU_Load", "Ram", "Ram_Used", "CPU_cores", "CPU_cores_used",
+        "Network_RX", "Network_TX", "No_Of_Running_vms",
+        "hour", "dayofweek", "hour_sin", "hour_cos", "dow_sin", "dow_cos",
+        "Power", "Fan_speed1", "Fan_speed2", "Fan_speed3", "Fan_speed4",
+        "Inlet_Temperature", "CPU_Temperature", "CPU1_Temperature", "CPU2_Temperature",
+        "CPU_Temperature_lag_1", "CPU_Temperature_rmean_6",
+    ]
+    # Intentionally duplicate columns in available_columns input
+    cols_duplicated = cols + ["CPU_Temperature", "Inlet_Temperature", "CPU_Temperature_lag_1", "CPU_Load"]
+    feats = get_feature_set("S4", cols_duplicated)
+    assert len(feats) == len(set(feats)), f"Duplicates found in S4: {feats}"
+    # Verify order preservation
+    expected_unique = []
+    for c in cols_duplicated:
+        if c in feats and c not in expected_unique:
+            expected_unique.append(c)
+    assert feats == expected_unique
+

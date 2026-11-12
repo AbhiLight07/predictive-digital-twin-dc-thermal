@@ -30,6 +30,8 @@ from ttwin.eval import load_all_metrics, compute_skill_scores
 EXPERIMENTS_DIR = ROOT / "experiments"
 INTERIM_DIR = ROOT / "data" / "interim"
 
+st.warning("⚠️ PRELIMINARY — offline prototype. Results come from pre-computed CSV files.")
+
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="DC Thermal Twin v2",
@@ -180,6 +182,7 @@ elif page == "🔮 What-If Simulator (Planning)":
 
     # Correlational planning model heuristic derived from S2 workload-only model
     # Baseline idle ~ 45°C + ~0.28°C per 1% CPU load + RAM contribution
+    # ILLUSTRATIVE — not model output
     pred_base_temp = 45.0 + 0.28 * base_cpu + 0.015 * ram_used + 0.1 * vms
     pred_sim_temp = 45.0 + 0.28 * sim_cpu + 0.015 * ram_used + 0.1 * vms
     delta_temp = pred_sim_temp - pred_base_temp
@@ -224,6 +227,7 @@ elif page == "⏱️ Historical Replay & Risk":
         cur_load = cur_row["CPU_Load"]
 
         # Conformal interval simulation (+/- 1.8°C at 90%)
+        # ILLUSTRATIVE — not model output; q_hat is fixed scalar, not from conformal calibration
         q_hat = 1.80
         pred_temp = cur_temp + np.sin(step_idx / 10.0) * 0.3
         upper_bound = pred_temp + q_hat

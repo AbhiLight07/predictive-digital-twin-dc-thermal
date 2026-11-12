@@ -19,3 +19,4 @@ All project decisions not covered in the PROJECT_BRIEF.md are logged here with d
 | 2026-11-08 | Purging of unverified "Ahmed et al." citation | The dataset paper is Ilager et al. (UCC 2023); "Ahmed et al." was an unverified hallucination from prior draft | Agent (review) |
 | 2026-11-08 | Dell PowerEdge hardware correction | R840 verified as dense 2U 4-socket server (not 4U); C6320 verified as 2U 4-node modular sled; airflow coupling marked unverified | Agent (review) |
 | 2026-11-08 | Time-consistent cold-start pretraining | Pretrained models must strictly be trained on data prior to target server adaptation windows to prevent future leakage | Agent (review) |
+| 2026-11-12 | Evaluation protocol frozen | Frozen protocol with 70/10/20 chronological Split A (36-step embargo), 5-fold GroupKFold Split B, and strict Split C; commit 6909f188 | Agent |

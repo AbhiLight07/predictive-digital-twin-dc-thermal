@@ -1,28 +1,27 @@
 # Evaluation Protocol — Frozen after Phase 2
 # WARNING: Do not modify after freezing without logging the reason in docs/decisions.md
-#
-# This file will be populated after the data audit and before any model training.
 
-protocol_frozen: false
-protocol_frozen_date: null
-protocol_frozen_commit: null
+protocol_frozen: true
+protocol_frozen_date: "2026-11-12"
+protocol_frozen_commit: "6909f1885a914c7f8ac13aa9ec2f1e421846f8ed"
 
 splits:
   A_chronological:
-    description: "Global time cutoff per cluster; train ~70%, test ~30%"
-    train_fraction: 0.7
-    embargo_gap: null  # Set after knowing sampling interval and max horizon
-    validation_from_train_end: null
-  B_leave_servers_out:
-    description: "Hold out ~20% of servers entirely; 5 repeats with fixed seeds"
-    holdout_fraction: 0.2
-    n_repeats: 5
-    seeds: [42, 123, 456, 789, 1024]
-    stratify_by: "mean_cpu_load"  # If feasible
+    description: "Global time cutoff per cluster; 70% train, 10% validation, 20% test"
+    train_fraction: 0.70
+    val_fraction: 0.10
+    test_fraction: 0.20
+    embargo_gap: 36  # 36 steps of 10 min = 6 hours
+  B_group_kfold:
+    description: "5-fold GroupKFold by physical server; stratified by mean CPU load"
+    n_splits: 5
+    stratify_by: "mean_cpu_load"
   C_strict:
-    description: "Held-out servers AND later time"
+    description: "Unseen servers (20% held-out) evaluated at strictly later time (final 20% test duration)"
+    holdout_fraction: 0.20
+    embargo_gap: 36  # 36 steps of 10 min = 6 hours
 
-horizons_minutes: [10, 60, 360]  # 10min, 1h, 6h — adjust to real sampling interval
+horizons_minutes: [10, 60, 360]  # 10min, 1h, 6h
 
 metrics:
   - MAE

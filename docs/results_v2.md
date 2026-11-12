@@ -119,7 +119,7 @@ Unlike earlier single-seed holdouts that sampled the lowest-load servers, **5-Fo
 ## 4. Split C: Strict Spatio-Temporal Holdout
 
 Test servers and calendar period are strictly disjoint from training:
-- **Dataset 1:** 14 held-out servers evaluated exclusively on April 15 – June 20, 2019 (101,808 test rows).
+- **Dataset 1:** Test window starts **2019-04-30 21:10** to 2019-06-20 10:00 (not April 15). Note on server count: 15 physical servers are held out by `split_strict` (`int(76 * 0.20) = 15`), but 14 servers appear in `results_split_c.csv` because 1 held-out server lacked complete sensor telemetry across all evaluated feature sets after `dropna()` (leaving 101,808 clean test rows).
 - **Dataset 2:** 12 held-out servers evaluated exclusively on test calendar window (47,502 test rows).
 
 ### Table 3: Split C Evaluation (1-hour Horizon; `experiments/v2_ablation/results_split_c.csv`)
@@ -141,6 +141,8 @@ Test servers and calendar period are strictly disjoint from training:
 ## 5. Random 5-Fold Cross-Validation Reference (Leakage Benchmark)
 
 As mandated by the prompt to demonstrate data leakage in unembargoed random splits:
+
+> **Note on Table 4:** Table 4 does not demonstrate leakage directly; the comparisons between Random 5-Fold, Split A, and Split B are evaluated on different row subsets and horizons, and are therefore **not like-for-like; see Tier B** for paired identical-row evaluation.
 
 ### Table 4: Random 5-Fold CV vs Group/Chronological Splits (`experiments/v2_ablation/results_random_kfold_reference.csv`)
 
@@ -244,6 +246,8 @@ Calibrated on held-out validation servers (disjoint from test servers and time).
 | **Temperature Bin** | Cool (<50°C) | 44,777 | 96.78% | 83.68% | **92.24%** |
 | | Moderate (50–60°C) | 39,655 | 85.14% *(Under-covers)* | 86.54% | **89.09%** |
 | | Hot ($\ge 60$°C) | 24,648 | 86.97% *(Under-covers)* | 91.33% | **92.67%** |
+
+> **Note on Conditional Coverage:** While CQR achieves 91.19% aggregate coverage and maintains ≥90.8% across all load regimes (Idle 90.85%, Active 93.33%, Heavy 98.53%) and in cool (92.24%) and hot (92.67%) temperature bins, it slightly under-covers in the moderate temperature bin (50–60°C) at **89.09%** (below the 90.0% nominal target). Claims that CQR keeps ≥90.8% in *every* regime are therefore false.
 
 ### Table 9: Per-Server Coverage Distribution & Weekly Drift (`experiments/v2_uncertainty/weekly_coverage_drift.csv`)
 

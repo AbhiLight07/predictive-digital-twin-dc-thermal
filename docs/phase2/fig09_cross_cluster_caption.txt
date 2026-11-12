@@ -1,1 +1,2 @@
-v2_transfer/cross_cluster_planning_results.csv; planning regime, 1h horizon
+Cross-cluster planning performance transferring models from Cluster 1 to Cluster 2.
+exp_id: v2_transfer; source: experiments/v2_transfer/cross_cluster_planning_results.csv

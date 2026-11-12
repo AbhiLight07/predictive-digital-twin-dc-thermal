@@ -1,1 +1,2 @@
-docs/snapshot/04_protocol_and_splits.md §3
+Partitioning schemas for temporal Split A, spatial GroupKFold Split B, and strict Split C.
+exp_id: split_protocols; source: docs/snapshot/04_protocol_and_splits.md

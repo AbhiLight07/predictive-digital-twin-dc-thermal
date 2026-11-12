@@ -1,1 +1,2 @@
-v2_adaptation/summary_table.csv; 16 target servers, 95% CI over servers, planning regime
+Cold-start planning adaptation curves showing target server MAE across local training budgets with 95% confidence intervals.
+exp_id: v2_adaptation; source: experiments/v2_adaptation/summary_table.csv

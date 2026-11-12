@@ -1,1 +1,2 @@
-git log --oneline --decorate; tags: v0.1-audit, v0.9-pre-fix, v1.0-corrected
+Project development timeline with phases, git commit history, and milestone tags.
+exp_id: project_milestones; source: git log (tags v0.1-audit, v0.9-pre-fix, v1.0-corrected)

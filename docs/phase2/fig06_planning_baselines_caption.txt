@@ -1,1 +1,2 @@
-diag_part_a_q1_baselines.csv + diag_part_a_q2_contemporaneous.csv
+Planning regime temperature forecasting baselines evaluated on the 16-server diagnostic subset.
+exp_id: diag_part_a; source: experiments/diag_part_a_q1_baselines.csv and diag_part_a_q2_contemporaneous.csv

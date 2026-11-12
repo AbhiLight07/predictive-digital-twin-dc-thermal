@@ -1,1 +1,2 @@
-exp_id: pipeline design, tools from requirements.txt
+Machine learning pipeline architecture from raw CSV telemetry to digital twin dashboard.
+exp_id: pipeline_architecture; source: requirements.txt and src/ttwin/

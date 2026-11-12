@@ -1,1 +1,2 @@
-v2_ablation/shap_summary.csv; S4 LightGBM, 1h horizon, 1000 samples
+Top 10 features ranked by mean absolute SHAP value for the S4 LightGBM model at 1-hour horizon.
+exp_id: v2_ablation; source: experiments/v2_ablation/shap_summary.csv

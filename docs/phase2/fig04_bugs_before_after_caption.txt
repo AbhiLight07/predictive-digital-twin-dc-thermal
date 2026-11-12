@@ -1,1 +1,2 @@
-docs/snapshot/12_known_issues.md; docs/diagnostics/FIX_REPORT.md
+Four pipeline audit bugs and their before-and-after resolution metrics.
+exp_id: audit_diagnostics; source: experiments/diag_unified_ablation/results.csv, results_split_a.csv, diag_split_b_5seeds/results.csv, results_split_b_groupkfold.csv, FIX_REPORT.md

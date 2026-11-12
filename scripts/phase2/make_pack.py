@@ -40,12 +40,15 @@ CAPTION_TEMPLATE = "{text}"
 
 
 def save(fig, name, caption_text):
+    if name not in ["fig01_pipeline", "fig02_timeline", "fig03_splits"]:
+        fig.text(0.99, 0.01, "PRELIMINARY", fontsize=9, color="#777777",
+                 ha="right", va="bottom", fontstyle="italic", weight="bold")
     png_path = os.path.join(OUT_DIR, f"{name}.png")
     txt_path = os.path.join(OUT_DIR, f"{name}_caption.txt")
     fig.savefig(png_path, dpi=200, bbox_inches="tight")
     plt.close(fig)
     with open(txt_path, "w", encoding="utf-8") as f:
-        f.write(caption_text)
+        f.write(caption_text.strip() + "\n")
     print(f"  ✓  {png_path}")
 
 
@@ -123,7 +126,8 @@ def fig01_pipeline():
             bbox=dict(boxstyle="round,pad=0.4", facecolor="#eef2ff", edgecolor="#aab4d4"))
 
     save(fig, "fig01_pipeline",
-         "exp_id: pipeline design, tools from requirements.txt")
+         "Machine learning pipeline architecture from raw CSV telemetry to digital twin dashboard.\n"
+         "exp_id: pipeline_architecture; source: requirements.txt and src/ttwin/")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -195,7 +199,8 @@ def fig02_timeline():
     ax.spines["top"].set_visible(False)
 
     save(fig, "fig02_timeline",
-         "git log --oneline --decorate; tags: v0.1-audit, v0.9-pre-fix, v1.0-corrected")
+         "Project development timeline with phases, git commit history, and milestone tags.\n"
+         "exp_id: project_milestones; source: git log (tags v0.1-audit, v0.9-pre-fix, v1.0-corrected)")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -273,75 +278,100 @@ def fig03_splits():
 
     fig.tight_layout(rect=[0, 0, 1, 0.95])
     save(fig, "fig03_splits",
-         "docs/snapshot/04_protocol_and_splits.md §3")
+         "Partitioning schemas for temporal Split A, spatial GroupKFold Split B, and strict Split C.\n"
+         "exp_id: split_protocols; source: docs/snapshot/04_protocol_and_splits.md")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# fig04 — Bug fixes before/after
+# fig04 — Bug fixes before/after (4 panels)
 # ═══════════════════════════════════════════════════════════════════════════════
 def fig04_bugs():
-    # Normalized scale: all bugs mapped to [0,1]
-    # Bug1: test% — before=0.317, after=0.200 → show as fraction
-    # Bug2: 1=crash/before, 0=ok/after
-    # Bug3: 1=mismatch/before, 0=clean/after
-    # Bug4: 1=wrong/before, 0=correct/after
-    bugs = [
-        "Bug 1\nSplit A\nboundary overlap",
-        "Bug 2\nFeature dedup\n(S4 dim)",
-        "Bug 3\nHost trailing\nspaces",
-        "Bug 4\nConformal\ncalib set",
-    ]
-    before = [0.317, 1.0, 1.0, 1.0]
-    after  = [0.200, 0.0, 0.0, 0.0]
-    before_labels = ["31.7% test", "57 cols (crash)", "mismatch (1=err)", "train rows (1=wrong)"]
-    after_labels  = ["20.0% test", "56 cols (OK)",    "clean (0)",         "val rows (0=ok)"]
+    fig, axes = plt.subplots(2, 2, figsize=(16, 9))
+    fig.suptitle("Four pipeline bugs found by the audit and fixed", fontsize=18, fontweight="bold")
 
-    fig, ax = plt.subplots(figsize=(16, 9))
-    ax.set_title("Audit Bug Fixes: Before vs After", fontsize=18, fontweight="bold")
+    # Panel 1: S1 LightGBM vs persistence MAE at 10 min and 1 h
+    ax1 = axes[0, 0]
+    df_before = pd.read_csv("experiments/diag_unified_ablation/results.csv")
+    df_after = pd.read_csv("experiments/v2_ablation/results_split_a.csv")
 
-    x = np.arange(len(bugs))
-    w = 0.3
-    bars_before = ax.bar(x - w/2, before, width=w, color="#e74c3c", label="Before fix", edgecolor="white")
-    bars_after  = ax.bar(x + w/2, after,  width=w, color="#2ecc71", label="After fix",  edgecolor="white")
+    b_s0_10 = df_before[(df_before["horizon"] == "10min") & (df_before["feature_set"] == "S0")]["mae"].values[0]
+    b_s1_10 = df_before[(df_before["horizon"] == "10min") & (df_before["feature_set"] == "S1") & (df_before["model"] == "lightgbm")]["mae"].values[0]
+    b_s0_1h = df_before[(df_before["horizon"] == "1h") & (df_before["feature_set"] == "S0")]["mae"].values[0]
+    b_s1_1h = df_before[(df_before["horizon"] == "1h") & (df_before["feature_set"] == "S1") & (df_before["model"] == "lightgbm")]["mae"].values[0]
 
-    # Annotate
-    for bar, lbl in zip(bars_before, before_labels):
-        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.015,
-                lbl, ha="center", va="bottom", fontsize=9, color="#c0392b", fontweight="bold")
-    for bar, lbl in zip(bars_after, after_labels):
-        h = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2, max(h, 0) + 0.015,
-                lbl, ha="center", va="bottom", fontsize=9, color="#27ae60", fontweight="bold")
+    a_s0_10 = df_after[(df_after["dataset"] == "dataset1") & (df_after["split"] == "Split A") & (df_after["horizon"] == "10min") & (df_after["feature_set"] == "S0")]["mae"].values[0]
+    a_s1_10 = df_after[(df_after["dataset"] == "dataset1") & (df_after["split"] == "Split A") & (df_after["horizon"] == "10min") & (df_after["feature_set"] == "S1") & (df_after["model"] == "lightgbm")]["mae"].values[0]
+    a_s0_1h = df_after[(df_after["dataset"] == "dataset1") & (df_after["split"] == "Split A") & (df_after["horizon"] == "1h") & (df_after["feature_set"] == "S0")]["mae"].values[0]
+    a_s1_1h = df_after[(df_after["dataset"] == "dataset1") & (df_after["split"] == "Split A") & (df_after["horizon"] == "1h") & (df_after["feature_set"] == "S1") & (df_after["model"] == "lightgbm")]["mae"].values[0]
 
-    ax.set_xticks(x)
-    ax.set_xticklabels(bugs, fontsize=12)
-    ax.set_ylabel("Normalized metric\n(Bug 1: test fraction; Bugs 2-4: 1=error, 0=ok)", fontsize=13)
-    ax.set_ylim(0, 1.35)
-    ax.legend(fontsize=12)
-    ax.grid(axis="y", alpha=0.5)
+    x = np.arange(2)
+    w = 0.2
+    ax1.bar(x - 1.5*w, [b_s0_10, b_s0_1h], width=w, label="Before: Persistence S0", color="#95a5a6", edgecolor="white")
+    ax1.bar(x - 0.5*w, [b_s1_10, b_s1_1h], width=w, label="Before: LightGBM S1 (worse)", color="#e74c3c", edgecolor="white")
+    ax1.bar(x + 0.5*w, [a_s0_10, a_s0_1h], width=w, label="After: Persistence S0", color="#7f8c8d", edgecolor="white")
+    ax1.bar(x + 1.5*w, [a_s1_10, a_s1_1h], width=w, label="After: LightGBM S1 (delta target)", color="#2ecc71", edgecolor="white")
 
-    ax.text(0.98, 0.98, "Sources: docs/snapshot/12_known_issues.md\ndocs/diagnostics/FIX_REPORT.md",
-            transform=ax.transAxes, ha="right", va="top", fontsize=10, color="#666")
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(["10 min", "1 h"], fontsize=12)
+    ax1.set_ylabel("MAE (°C)", fontsize=13)
+    ax1.set_title("1. Target Formulation: Absolute vs Delta T", fontsize=13, fontweight="bold")
+    ax1.legend(fontsize=9, loc="upper left")
+    ax1.grid(axis="y", alpha=0.5)
 
-    fig.tight_layout()
+    # Panel 2: Split A test share 31.7% -> 20.0%
+    ax2 = axes[0, 1]
+    shares = [31.7, 20.0]
+    labels_share = ["Before Fix\n(Overlapping Val)", "After Fix\n(70/10/20 + 6h Embargo)"]
+    bars_s = ax2.bar([0, 1], shares, width=0.4, color=["#e74c3c", "#2ecc71"], edgecolor="white")
+    for bar, val in zip(bars_s, shares):
+        ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.8,
+                 f"{val:.1f}%", ha="center", va="bottom", fontsize=11, fontweight="bold")
+    ax2.set_xticks([0, 1])
+    ax2.set_xticklabels(labels_share, fontsize=11)
+    ax2.set_ylabel("Test Partition Share of Calendar Time (%)", fontsize=12)
+    ax2.set_ylim(0, 40)
+    ax2.set_title("2. Split A Boundary Overlap Fix", fontsize=13, fontweight="bold")
+    ax2.grid(axis="y", alpha=0.5)
+
+    # Panel 3: Persistence MAE of 5 seeds vs 5 GroupKFold folds
+    ax3 = axes[1, 0]
+    df_seeds = pd.read_csv("experiments/diag_split_b_5seeds/results.csv")
+    df_gk = pd.read_csv("experiments/v2_ablation/results_split_b_groupkfold.csv")
+    df_gk_d1 = df_gk[(df_gk["dataset"] == "dataset1") & (df_gk["feature_set"] == "S0") & (df_gk["model"] == "persistence")].sort_values("fold")
+
+    seeds_mae = df_seeds["mae_persistence"].values
+    gk_mae = df_gk_d1["mae"].values
+
+    idx = np.arange(1, 6)
+    ax3.plot(idx, seeds_mae, "o--", color="#e74c3c", linewidth=2, markersize=8, label="Before: 5 Seeds (identical 0.43°C)")
+    ax3.plot(idx, gk_mae, "s-", color="#2ecc71", linewidth=2, markersize=8, label="After: 5 GroupKFold Folds (real variance)")
+    ax3.set_xticks(idx)
+    ax3.set_xticklabels([f"Fold {i}" for i in idx], fontsize=11)
+    ax3.set_xlabel("Partition / Seed Index", fontsize=12)
+    ax3.set_ylabel("Persistence MAE (°C)", fontsize=13)
+    ax3.set_title("3. Stratified Sampling Collapse in Split B", fontsize=13, fontweight="bold")
+    ax3.legend(fontsize=9, loc="center right")
+    ax3.grid(True, alpha=0.5)
+
+    # Panel 4: Cluster-2 servers kept by data gate (2 -> 59)
+    ax4 = axes[1, 1]
+    servers_kept = [2, 59]
+    labels_gate = ["Before Audit\n(All 18 Cols Evaluated)", "After Audit\n(Used Telemetry Only)"]
+    bars_g = ax4.bar([0, 1], servers_kept, width=0.4, color=["#e74c3c", "#2ecc71"], edgecolor="white")
+    for bar, val in zip(bars_g, servers_kept):
+        ax4.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1.2,
+                 f"{val} servers", ha="center", va="bottom", fontsize=11, fontweight="bold")
+    ax4.set_xticks([0, 1])
+    ax4.set_xticklabels(labels_gate, fontsize=11)
+    ax4.set_ylabel("Qualifying Physical Servers (Count)", fontsize=12)
+    ax4.set_ylim(0, 70)
+    ax4.set_title("4. Cluster-2 Missingness Gate Filtering", fontsize=13, fontweight="bold")
+    ax4.grid(axis="y", alpha=0.5)
+
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     save(fig, "fig04_bugs_before_after",
-         "docs/snapshot/12_known_issues.md; docs/diagnostics/FIX_REPORT.md")
-
-    # Also write bugs_table.md
-    md = textwrap.dedent("""\
-        # Bug Fix Summary
-
-        | Bug | Location | Before | After | Fixed? |
-        |-----|----------|--------|-------|--------|
-        | Split A boundary overlap | `src/ttwin/splits.py` | test%=31.7% | test%=20.0% | ✅ |
-        | Feature dedup (S4 dim) | feature engineering pipeline | 57 cols (crash) | 56 cols (OK) | ✅ |
-        | Host trailing spaces | CSV ingestion / host join | mismatch (1=error) | clean (0=ok) | ✅ |
-        | Conformal calib set | uncertainty calibration | train rows (wrong) | val rows only (correct) | ✅ |
-    """)
-    md_path = os.path.join(OUT_DIR, "bugs_table.md")
-    with open(md_path, "w", encoding="utf-8") as f:
-        f.write(md)
-    print(f"  ✓  {md_path}")
+         "Four pipeline audit bugs and their before-and-after resolution metrics.\n"
+         "exp_id: audit_diagnostics; source: experiments/diag_unified_ablation/results.csv, results_split_a.csv, diag_split_b_5seeds/results.csv, results_split_b_groupkfold.csv, FIX_REPORT.md")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -392,7 +422,8 @@ def fig05_skill_vs_persistence():
 
     fig.tight_layout()
     save(fig, "fig05_skill_vs_persistence",
-         "v2_ablation/results_split_a.csv; dataset1, Split A, LightGBM S1/S4; note: skill close to persistence, no CI computed")
+         "Monitoring regime MAE across forecast horizons for persistence vs LightGBM models on Dataset 1 (Split A).\n"
+         "exp_id: v2_ablation; source: experiments/v2_ablation/results_split_a.csv")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -434,7 +465,8 @@ def fig06_planning_baselines():
 
     fig.tight_layout()
     save(fig, "fig06_planning_baselines",
-         "diag_part_a_q1_baselines.csv + diag_part_a_q2_contemporaneous.csv")
+         "Planning regime temperature forecasting baselines evaluated on the 16-server diagnostic subset.\n"
+         "exp_id: diag_part_a; source: experiments/diag_part_a_q1_baselines.csv and diag_part_a_q2_contemporaneous.csv")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -490,7 +522,8 @@ def fig07_adaptation_curve():
 
     fig.tight_layout()
     save(fig, "fig07_adaptation_curve",
-         "v2_adaptation/summary_table.csv; 16 target servers, 95% CI over servers, planning regime")
+         "Cold-start planning adaptation curves showing target server MAE across local training budgets with 95% confidence intervals.\n"
+         "exp_id: v2_adaptation; source: experiments/v2_adaptation/summary_table.csv")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -540,7 +573,8 @@ def fig08_coverage_by_regime():
 
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     save(fig, "fig08_coverage_by_regime",
-         "v2_uncertainty/coverage_by_regime_and_bin.csv + conformal_methods_comparison.csv; Split C, 15 servers")
+         "Conformal uncertainty prediction interval empirical coverage across regimes and mean interval widths on Split C.\n"
+         "exp_id: v2_uncertainty; source: experiments/v2_uncertainty/coverage_by_regime_and_bin.csv and conformal_methods_comparison.csv")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -592,7 +626,8 @@ def fig09_cross_cluster():
 
     fig.tight_layout()
     save(fig, "fig09_cross_cluster",
-         "v2_transfer/cross_cluster_planning_results.csv; planning regime, 1h horizon")
+         "Cross-cluster planning performance transferring models from Cluster 1 to Cluster 2.\n"
+         "exp_id: v2_transfer; source: experiments/v2_transfer/cross_cluster_planning_results.csv")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -621,7 +656,8 @@ def fig10_shap():
 
     fig.tight_layout()
     save(fig, "fig10_shap",
-         "v2_ablation/shap_summary.csv; S4 LightGBM, 1h horizon, 1000 samples")
+         "Top 10 features ranked by mean absolute SHAP value for the S4 LightGBM model at 1-hour horizon.\n"
+         "exp_id: v2_ablation; source: experiments/v2_ablation/shap_summary.csv")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -25,6 +25,7 @@ build/
 # Model binaries
 *.pkl
 *.joblib
+!models/*.joblib
 *.h5
 *.pt
 *.pth

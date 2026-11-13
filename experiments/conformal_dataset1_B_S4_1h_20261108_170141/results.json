@@ -1,0 +1,50 @@
+{
+  "exp_id": "conformal_dataset1_B_S4_1h_20261108_170141",
+  "dataset": "dataset1",
+  "split": "B",
+  "feature_set": "S4",
+  "horizon": "1h",
+  "model_mae": 0.5700861335576946,
+  "conformal": [
+    {
+      "alpha": 0.05,
+      "target_coverage": 0.95,
+      "empirical_coverage": 0.9874,
+      "average_width_C": 7.277,
+      "q_hat": 3.6387,
+      "coverage_gap": 0.0374,
+      "n_cal": 323237,
+      "n_test": 490323
+    },
+    {
+      "alpha": 0.1,
+      "target_coverage": 0.9,
+      "empirical_coverage": 0.9674,
+      "average_width_C": 4.34,
+      "q_hat": 2.1702,
+      "coverage_gap": 0.0674,
+      "n_cal": 323237,
+      "n_test": 490323
+    },
+    {
+      "alpha": 0.2,
+      "target_coverage": 0.8,
+      "empirical_coverage": 0.8864,
+      "average_width_C": 2.18,
+      "q_hat": 1.0901,
+      "coverage_gap": 0.0864,
+      "n_cal": 323237,
+      "n_test": 490323
+    },
+    {
+      "alpha": 0.3,
+      "target_coverage": 0.7,
+      "empirical_coverage": 0.7791,
+      "average_width_C": 1.423,
+      "q_hat": 0.7115,
+      "coverage_gap": 0.0791,
+      "n_cal": 323237,
+      "n_test": 490323
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+dataset: dataset1
+feature_set: S0
+horizon: 1h
+model: persistence
+seed: 42
+seeds:
+- 42
+- 123
+- 456
+- 789
+- 1024
+split: B

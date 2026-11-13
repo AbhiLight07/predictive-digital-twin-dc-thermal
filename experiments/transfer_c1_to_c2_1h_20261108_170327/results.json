@@ -1,0 +1,27 @@
+{
+  "exp_id": "transfer_c1_to_c2_1h_20261108_170327",
+  "source": "dataset1 (Dell R840)",
+  "target": "dataset2 (Dell C6320)",
+  "horizon": "1h",
+  "shared_features": [
+    "CPU_Load",
+    "CPU_Temperature_lag_1",
+    "CPU_Temperature_lag_2",
+    "CPU_Temperature_lag_6",
+    "CPU_Temperature_rmean_6",
+    "CPU_Temperature_rstd_6",
+    "No_Of_Running_vms",
+    "Ram_Used",
+    "dow_cos",
+    "dow_sin",
+    "hour_cos",
+    "hour_sin"
+  ],
+  "n_test_cluster2": 344606,
+  "mae_persistence": 0.8115740418434143,
+  "mae_native": 1.117017443063316,
+  "rmse_native": 1.7451615836726018,
+  "mae_transfer": 1.349343976220151,
+  "rmse_transfer": 2.219771188381209,
+  "transfer_gap_mae": 0.23232653315683494
+}

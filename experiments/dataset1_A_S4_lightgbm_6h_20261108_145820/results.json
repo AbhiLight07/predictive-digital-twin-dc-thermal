@@ -1,0 +1,49 @@
+{
+  "config": {
+    "dataset": "dataset1",
+    "feature_set": "S4",
+    "model": "lightgbm",
+    "split": "A",
+    "horizon": "6h",
+    "seed": 42
+  },
+  "git_commit": "b4b9378",
+  "timestamp": "2026-11-08T15:01:32.905214",
+  "splits": [
+    {
+      "split_label": "A",
+      "model": "lightgbm",
+      "n_features": 53,
+      "n_train": 1551717,
+      "n_val": 266912,
+      "n_test": 828324,
+      "mae_global": 1.7753418713807412,
+      "rmse_global": 3.2143487934178956,
+      "per_server_summary": {
+        "mean": 1.7753418713807414,
+        "std": 1.2641281013358343,
+        "median": 1.5921987534853081,
+        "q25": 0.6385187547094079,
+        "q75": 2.6428543256834462,
+        "iqr": 2.0043355709740385,
+        "worst_decile": 3.66805403989562,
+        "max": 5.068912981135919,
+        "min": 0.32078081329545294,
+        "n_servers": 76
+      },
+      "train_time_s": 122.7700138092041,
+      "top_features": {
+        "CPU_Temperature_lag_1": 955341902.6138916,
+        "CPU_Temperature_rmean_6": 836891262.3605957,
+        "CPU_Temperature_rmean_36": 201161930.6767578,
+        "CPU_Temperature_rmean_12": 183567608.47021484,
+        "CPU1_Temperature_lag_1": 74668681.34692383,
+        "CPU1_Temperature_rmean_36": 52584581.084472656,
+        "CPU1_Temperature_rmean_12": 45920724.31152344,
+        "CPU1_Temperature_rmean_6": 43212042.21533203,
+        "Ram_Used": 8347184.774658203,
+        "hour": 5001494.203613281
+      }
+    }
+  ]
+}

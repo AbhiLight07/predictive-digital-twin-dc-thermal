@@ -1,0 +1,33 @@
+{
+  "config": {
+    "dataset": "dataset1",
+    "feature_set": "S0",
+    "model": "persistence",
+    "split": "A",
+    "horizon": "1h",
+    "seed": 42
+  },
+  "git_commit": "b4b9378",
+  "timestamp": "2026-11-08T14:55:32.543026",
+  "model": "persistence",
+  "splits": [
+    {
+      "split_label": "A",
+      "mae_global": 0.8332547545433044,
+      "rmse_global": 1.987099289894104,
+      "per_server_summary": {
+        "mean": 0.828813781340917,
+        "std": 0.6915823168947501,
+        "median": 0.5924031734466553,
+        "q25": 0.34259670972824097,
+        "q75": 1.1479090452194214,
+        "iqr": 0.8053123354911804,
+        "worst_decile": 1.5578361749649048,
+        "max": 4.691317558288574,
+        "min": 0.15132097899913788,
+        "n_servers": 81
+      },
+      "n_test": 872668
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+dataset: dataset1
+feature_set: S1
+horizon: 10min
+model: lightgbm
+seed: 42
+split: A

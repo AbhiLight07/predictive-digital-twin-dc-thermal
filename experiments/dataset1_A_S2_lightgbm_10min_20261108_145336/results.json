@@ -1,0 +1,49 @@
+{
+  "config": {
+    "dataset": "dataset1",
+    "feature_set": "S2",
+    "model": "lightgbm",
+    "split": "A",
+    "horizon": "10min",
+    "seed": 42
+  },
+  "git_commit": "b4b9378",
+  "timestamp": "2026-11-08T14:57:47.962623",
+  "splits": [
+    {
+      "split_label": "A",
+      "model": "lightgbm",
+      "n_features": 14,
+      "n_train": 1578902,
+      "n_val": 284553,
+      "n_test": 873478,
+      "mae_global": 5.163171754488856,
+      "rmse_global": 6.535517259022726,
+      "per_server_summary": {
+        "mean": 5.241681414184124,
+        "std": 2.9470268076895327,
+        "median": 4.2254715337058455,
+        "q25": 3.3363573525619787,
+        "q75": 6.837325543544373,
+        "iqr": 3.500968190982394,
+        "worst_decile": 9.899902216205007,
+        "max": 13.825386248410823,
+        "min": 0.7857512192325798,
+        "n_servers": 81
+      },
+      "train_time_s": 159.25963711738586,
+      "top_features": {
+        "CPU_Load": 1488243024.6036072,
+        "Ram_Used": 608227160.6304626,
+        "No_Of_Running_vms": 138473279.51624298,
+        "Ram": 131067473.1032486,
+        "CPU_cores_used": 81655070.69649506,
+        "Network_RX": 59317365.0335083,
+        "Network_TX": 29838796.007720947,
+        "dayofweek": 1406725.39743042,
+        "dow_sin": 1171399.8979034424,
+        "dow_cos": 589526.3669891357
+      }
+    }
+  ]
+}

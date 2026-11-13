@@ -1,0 +1,6 @@
+dataset: dataset1
+feature_set: S0
+horizon: 1h
+model: persistence
+seed: 42
+split: A

@@ -1,0 +1,51 @@
+{
+  "timestamp_utc": "2026-11-13T07:08:46.914680+00:00",
+  "git_commit": "1777552a0cee4ecb09112f9737a6794483b7aeca",
+  "git_dirty": true,
+  "cli_mode": "reuse-existing",
+  "protocol_frozen": true,
+  "random_seeds": {
+    "bootstrap_seed": 42,
+    "split_b_seed": 42,
+    "split_c_seeds": [
+      42,
+      123,
+      456,
+      789,
+      1024
+    ],
+    "lightgbm_seed": 42
+  },
+  "dataset_info": {
+    "dataset1": "Melbourne Cloud Cluster 1 (Dell PowerEdge R840)",
+    "dataset2": "Melbourne Cloud Cluster 2 (Dell PowerEdge C6320)",
+    "frequency": "10min",
+    "horizons_steps": [
+      1,
+      6,
+      36
+    ],
+    "lags": [
+      1,
+      2,
+      3,
+      6,
+      12
+    ],
+    "rolling_windows": [
+      6,
+      12,
+      36
+    ],
+    "embargo_steps": 36
+  },
+  "experiment_status": {
+    "e1_bootstrap_summary.csv": "REUSED",
+    "sensor_ablation.csv": "REUSED",
+    "split_b_and_c_horizons.csv": "REUSED",
+    "planning_adaptation_all_folds.csv": "REUSED",
+    "cross_cluster_adaptation.csv": "REUSED",
+    "random_vs_group_identical_rows.csv": "REUSED",
+    "s1_learning_rate_study.csv": "REUSED"
+  }
+}

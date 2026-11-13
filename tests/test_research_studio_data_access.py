@@ -137,7 +137,7 @@ def test_inference_engine_handles_missing_checkpoint(registry, loader):
     res = engine.run_inference("dataset1", "qh2-rcc120", t, checkpoint_name="non_existent_model")
     assert res["available"] is False
     assert "not found" in res["error"].lower() or "unavailable" in res["error"].lower()
-    assert "python scripts/run_v3_experiments.py" in res["reproducible_command"]
+    assert "python scripts/train_baseline_model.py" in res["reproducible_command"]
 
     # Also test successful inference when valid checkpoint is present
     if m_loader.has_checkpoints():

@@ -65,5 +65,9 @@ class ModelLoader:
             return None, target_desc, f"Failed to load checkpoint from {target_desc.path}: {str(e)}"
 
     def get_reproducible_training_command(self) -> str:
-        """Return the exact command to train and generate compatible models."""
+        """Return the exact command to train and generate compatible baseline models."""
+        return "python scripts/train_baseline_model.py"
+
+    def get_v3_experiments_command(self) -> str:
+        """Return the command to execute the full v3 scientific experiment suite."""
         return "python scripts/run_v3_experiments.py --force"

@@ -41,17 +41,24 @@ OUT_DIR = ROOT / "models"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def train_s1_model(horizon_steps: int = 6):
+def train_s1_model(dataset: str = "dataset1", horizon_steps: int = 6, seed: int = 42, num_boost_round: int = 200):
     print("=" * 70)
     print("TRAINING GENUINE LIGHTGBM S1 MODEL CHECKPOINT")
+    print(f"Dataset: {dataset}")
     print(f"Target: CPU_Temperature_delta_{horizon_steps} (Horizon: {horizon_steps * 10} min)")
+    print(f"Random Seed: {seed}")
     print("=" * 70)
 
     # 1. Load data
-    data_path = ROOT / "data" / "interim" / "dataset1" / "_combined.parquet"
+    data_path = ROOT / "data" / "interim" / dataset / "_combined.parquet"
     print(f"Loading {data_path}...")
     df = load_parquet(data_path)
     df["Series"] = df["Series"].astype(str).str.strip()
+
+    if dataset == "dataset2":
+        disqual = {"qh2-rcc263", "qh2-rcc264", "qh2-rcc226", "qh2-rcc205"}
+        df = df[~df["Series"].isin(disqual)].copy()
+        print(f"Excluded {len(disqual)} problematic servers in dataset2 per protocol.")
 
     # 2. Build features
     print("Building S1 features...")
@@ -94,14 +101,14 @@ def train_s1_model(horizon_steps: int = 6):
         "learning_rate": 0.05,
         "num_leaves": 63,
         "verbosity": -1,
-        "seed": 42,
+        "seed": seed,
     }
 
     print("Fitting LightGBM booster...")
     booster = lgb.train(
         params,
         dtrain,
-        num_boost_round=200,
+        num_boost_round=num_boost_round,
         valid_sets=[dval],
         callbacks=[lgb.early_stopping(30), lgb.log_evaluation(20)],
     )
@@ -121,7 +128,7 @@ def train_s1_model(horizon_steps: int = 6):
     print(f"Skill Score: {skill * 100:+.2f}%")
 
     # 6. Save checkpoint and metadata
-    model_name = f"dataset1_split_a_s1_lightgbm_{horizon_steps * 10}min"
+    model_name = f"{dataset}_split_a_s1_lightgbm_{horizon_steps * 10}min"
     model_path = OUT_DIR / f"{model_name}.joblib"
     meta_path = OUT_DIR / f"{model_name}.json"
 
@@ -132,7 +139,7 @@ def train_s1_model(horizon_steps: int = 6):
 
     metadata = {
         "name": model_name,
-        "dataset": "dataset1",
+        "dataset": dataset,
         "split": "Split A (Chronological)",
         "feature_set": "S1",
         "target_type": "delta",
@@ -155,4 +162,17 @@ def train_s1_model(horizon_steps: int = 6):
 
 
 if __name__ == "__main__":
-    train_s1_model()
+    import argparse
+    parser = argparse.ArgumentParser(description="Train baseline LightGBM model for Research Studio")
+    parser.add_argument("--dataset", type=str, default="dataset1", choices=["dataset1", "dataset2"])
+    parser.add_argument("--horizon", type=int, default=6, help="Horizon steps (e.g. 6 for 60 min, 1 for 10 min, 36 for 6h)")
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--boost-rounds", type=int, default=200)
+    args = parser.parse_args()
+
+    train_s1_model(
+        dataset=args.dataset,
+        horizon_steps=args.horizon,
+        seed=args.seed,
+        num_boost_round=args.boost_rounds,
+    )

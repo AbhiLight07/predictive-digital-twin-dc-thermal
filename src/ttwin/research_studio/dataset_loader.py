@@ -141,13 +141,20 @@ class DatasetLoader:
         sample_chunk = pd.read_csv(ds.raw_path, skiprows=range(1, 50_000), nrows=1000, low_memory=False)
         sample_df = sample_chunk.sample(n=min(n_sample, len(sample_chunk)), random_state=42).reset_index(drop=True)
 
-        # For tail: read using interim parquet or small chunk from end if available
-        # Or load last chunk from raw
-        total_rows = self.get_raw_metadata(dataset_name).get("total_rows", 2_748_525)
-        skip = max(1, total_rows - n_tail)
+        # For tail: seek to near end of the raw CSV file for sub-second retrieval
+        # Avoids parsing 2.7M rows sequentially while guaranteeing genuine raw bytes
         try:
-            tail_df = pd.read_csv(ds.raw_path, skiprows=range(1, skip + 1), nrows=n_tail, low_memory=False)
-            tail_df.columns = head_df.columns
+            import io
+            file_size = ds.raw_path.stat().st_size
+            seek_pos = max(0, file_size - 64 * 1024)
+            with open(ds.raw_path, "rb") as f:
+                f.seek(seek_pos)
+                tail_bytes = f.read()
+            lines = tail_bytes.decode("utf-8", errors="ignore").splitlines()
+            valid_lines = lines[1:] if seek_pos > 0 else lines
+            tail_lines = [l for l in valid_lines if l.strip()][-n_tail:]
+            header_line = ",".join(head_df.columns)
+            tail_df = pd.read_csv(io.StringIO(header_line + "\n" + "\n".join(tail_lines)), low_memory=False)
         except Exception:
             tail_df = head_df.tail(n_tail)
 

@@ -74,6 +74,17 @@ def render_dataset_explorer(registry: DataRegistry, loader: DatasetLoader):
         with m_cols[3]:
             st.metric("Raw CSV Size", f"{raw_meta.get('file_size_mb', 0)} MB")
 
+        st.markdown("""
+        <div class="tech-alert-blue" style="margin-top: 15px; margin-bottom: 20px;">
+            <h4>📐 Repository Architecture: Data Pipeline & Storage Boundary</h4>
+            <ul style="margin-bottom: 0; padding-left: 20px;">
+                <li><strong>Raw Layer (<code>data/raw/</code>):</strong> Original, uncompressed CSV observations as downloaded from the Zenodo repository.</li>
+                <li><strong>Cleaned Interim Layer (<code>data/interim/</code>):</strong> Cleaned, deduplicated, temperature-clipped (<code>[-10°C, 110°C]</code>), downcasted to <code>float32</code>/<code>int32</code>, and stored as per-server Snappy Parquet files + <code>_combined.parquet</code>.</li>
+                <li><strong>Processed Layer (<code>data/processed/</code>):</strong> <em>Deliberately empty on disk.</em> To avoid storing redundant tens of gigabytes of rolling window and lag matrices, model-ready feature matrices (S0–S4) and horizon targets are generated dynamically in-memory by <code>ttwin.features.build_features</code>.</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
         st.markdown("#### Complete Artifact Metadata")
         info_data = [
             ("Dataset Identifier", dataset_choice),
@@ -81,6 +92,7 @@ def render_dataset_explorer(registry: DataRegistry, loader: DatasetLoader):
             ("License", ds_desc.license),
             ("Actual Raw Path", str(ds_desc.raw_path)),
             ("Interim Parquet Path", str(ds_desc.combined_parquet)),
+            ("Processed Feature Storage", "Generated dynamically in memory (data/processed/ is empty)"),
             ("File Format (Raw / Interim)", f"CSV / Parquet ({ds_desc.combined_parquet.stat().st_size / (1024*1024):.1f} MB Snappy)"),
             ("Date Range", raw_meta.get("date_range", "Unknown")),
             ("Sampling Interval", f"{ds_desc.sampling_interval_min} minutes (regular 600-second cadence)"),
@@ -154,7 +166,7 @@ def render_dataset_explorer(registry: DataRegistry, loader: DatasetLoader):
     # ══════════════════════════════════════════════════════════════════════════
     with tab_c:
         st.markdown('<div class="lab-section-title">Processed Telemetry (Cleaned Interim Dataset)</div>', unsafe_allow_html=True)
-        st.caption("Displays the cleaned, deduplicated, temperature-clipped, and downcasted interim Parquet observations.")
+        st.caption("Displays genuine cleaned observations from <code>data/interim/</code> (deduplicated, temperature-clipped, downcasted). Feature engineering matrices (lags, rolling stats) are generated dynamically in memory.")
 
         interim_servers = loader.get_interim_servers(dataset_choice)
         c_cols = st.columns([1, 1, 2])
@@ -168,13 +180,24 @@ def render_dataset_explorer(registry: DataRegistry, loader: DatasetLoader):
 
         st.dataframe(df_processed.head(n_rows_c), use_container_width=True)
 
-        csv_proc = df_processed.head(n_rows_c).to_csv(index=False).encode("utf-8")
-        st.download_button(
-            f"📥 Download Cleaned Telemetry for {sel_server_c} (CSV)",
-            data=csv_proc,
-            file_name=f"{sel_server_c}_cleaned_interim.csv",
-            mime="text/csv",
-        )
+        col_dl1, col_dl2 = st.columns(2)
+        with col_dl1:
+            csv_proc_full = df_processed.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                f"📥 Download Complete Cleaned Telemetry for {sel_server_c} ({len(df_processed):,} rows)",
+                data=csv_proc_full,
+                file_name=f"{sel_server_c}_cleaned_interim.csv",
+                mime="text/csv",
+                type="primary",
+            )
+        with col_dl2:
+            csv_proc_slice = df_processed.head(n_rows_c).to_csv(index=False).encode("utf-8")
+            st.download_button(
+                f"📥 Download Displayed Preview ({n_rows_c} rows)",
+                data=csv_proc_slice,
+                file_name=f"{sel_server_c}_preview_{n_rows_c}rows.csv",
+                mime="text/csv",
+            )
 
         st.markdown("#### Server-Wise Observation Distribution")
         # Compute observation counts across all servers

@@ -77,16 +77,39 @@ def render_inference_lab(registry: DataRegistry, loader: DatasetLoader):
     df_srv = loader.load_interim_server(sel_dataset, sel_server, columns=["Time", "CPU_Temperature" if "CPU_Temperature" in loader.get_interim_metadata(sel_dataset)["columns"] else "CPU1_Temperature"])
     df_srv["Time"] = pd.to_datetime(df_srv["Time"])
 
-    # Provide candidate observations (excluding last horizon_steps rows so ground truth exists)
-    valid_window = df_srv.iloc[1000 : max(1001, len(df_srv) - horizon_steps - 10)].copy()
+    # Compute Split A chronological boundaries for this telemetry trace
+    t_min = df_srv["Time"].min()
+    t_max = df_srv["Time"].max()
+    dur = t_max - t_min
+    train_end = t_min + dur * 0.70
+    val_end = train_end + dur * 0.10
+    test_start = val_end + pd.Timedelta(hours=6)  # 6-hour embargo buffer
+
+    part_choice = st.radio(
+        "Select Target Observation Partition:",
+        ["Held-Out Test Window (Split A Test — Recommended)", "Validation Window (Model Selection)", "Train Window (In-Sample)", "All Observations"],
+        horizontal=True,
+    )
+
+    if "Held-Out Test Window" in part_choice:
+        valid_window = df_srv[(df_srv["Time"] >= test_start) & (df_srv["Time"] <= t_max - pd.Timedelta(minutes=horizon_steps * 10 + 20))].copy()
+    elif "Validation Window" in part_choice:
+        valid_window = df_srv[(df_srv["Time"] >= train_end) & (df_srv["Time"] < val_end - pd.Timedelta(minutes=horizon_steps * 10 + 20))].copy()
+    elif "Train Window" in part_choice:
+        valid_window = df_srv[(df_srv["Time"] >= t_min + pd.Timedelta(hours=6)) & (df_srv["Time"] < train_end - pd.Timedelta(minutes=horizon_steps * 10 + 20))].copy()
+    else:
+        valid_window = df_srv.iloc[1000 : max(1001, len(df_srv) - horizon_steps - 10)].copy()
+
+    if valid_window.empty:
+        valid_window = df_srv.iloc[1000 : max(1001, len(df_srv) - horizon_steps - 10)].copy()
 
     col_ts, col_btn = st.columns([3, 1])
     with col_ts:
         timestamp_options = valid_window["Time"].tolist()
         sel_timestamp = st.selectbox(
-            "Select Telemetry Timestamp (Observation Origin t)",
+            f"Select Telemetry Timestamp ({len(timestamp_options):,} available in selected partition)",
             timestamp_options,
-            index=min(100, len(timestamp_options) - 1),
+            index=min(50, len(timestamp_options) - 1),
             format_func=lambda t: t.strftime("%Y-%m-%d %H:%M:%S UTC"),
         )
     with col_btn:

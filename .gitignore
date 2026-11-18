@@ -55,3 +55,6 @@ models/twin/d2_monitoring_1_lower.txt
 models/twin/d2_monitoring_1_point.txt
 models/twin/d2_monitoring_1_upper.txt
 models/twin/d2_monitoring_6_upper.txt
+
+# Twin forecast cache (generated, large)
+data/twin_cache/

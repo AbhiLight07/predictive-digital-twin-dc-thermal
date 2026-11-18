@@ -18,7 +18,7 @@ This document tracks known limitations of the Predictive Digital Twin project. U
   * Dataset 1 nodes `qh2-rcc196` through `qh2-rcc200` lack inlet temperature and fan speed telemetry (100% missing), and span only 118 days. They are excluded from full S4 telemetry models.
   * Dataset 2 nodes `qh2-rcc263` and `qh2-rcc264` have broken DTS thermal registers (100% missing temperature).
   * Dataset 2 has structural missingness of 12% to 16% in memory and VM metrics across nodes, requiring relaxation of the data gate from 10% to 20% to retain a viable sample (59 qualifying servers under used telemetry columns, or 53 servers if strict RAM/VM presence is required across all 60 physical nodes).
-* **Sensor Asymmetries and Form Factors:** Effective CPU temperature is constructed as $\max(\text{CPU1}, \text{CPU2})$ from on-die DTS registers. Dell PowerEdge R840 (dense 2U 4-socket) and Dell PowerEdge C6320 (2U 4-node modular sled) possess fundamentally different chassis thermal impedances and cooling fan curves; physical sensor comparability across clusters cannot be assumed.
+* **Sensor Asymmetries and Form Factors:** Effective CPU temperature is constructed as $\max(\text{CPU1}, \text{CPU2})$ from on-die DTS registers. As reported in the dataset paper (Ilager et al., UCC 2023): dual-CPU hosts; capacities as in the trace columns; other hardware specifications are unverified. The two clusters possess fundamentally different chassis thermal impedances and cooling fan curves; physical sensor comparability across clusters cannot be assumed.
 
 ---
 

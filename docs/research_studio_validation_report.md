@@ -146,4 +146,4 @@ pytest
 1. **Offline Telemetry Only:** Telemetry originates from historical 2018–2019 cloud traces. There are no live sensor connections.
 2. **Zero Closed-Loop Actuation:** The system cannot adjust physical CRAC units, chillers, or fan speeds.
 3. **No Meteorological Sensors:** The dataset contains no outdoor weather telemetry. Seasonal temperature shifts cannot be attributed to weather.
-4. **Physical Dissimilarity:** Dell PowerEdge R840 (dense 4-socket 2U) and C6320 (modular 4-node 2U sled) have distinct aerodynamic and thermal profiles; cross-cluster transfer is treated purely descriptively.
+4. **Physical Dissimilarity:** As reported in the dataset paper (Ilager et al., UCC 2023): dual-CPU hosts; capacities as in the trace columns; other hardware specifications are unverified. The two clusters have distinct thermal profiles; cross-cluster transfer is treated purely descriptively.

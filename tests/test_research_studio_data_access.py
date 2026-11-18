@@ -24,6 +24,20 @@ from ttwin.research_studio.inference import ModelInferenceEngine
 from ttwin.research_studio.experiment_loader import ExperimentLoader
 from ttwin.research_studio.validation import SchemaValidator
 
+# --- data-availability helpers ------------------------------------------------
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_RAW_D1 = _PROJECT_ROOT / "data" / "raw" / "dataset1_combined.csv"
+_RAW_D2 = _PROJECT_ROOT / "data" / "raw" / "dataset2_combined.csv"
+_INTERIM_D1 = _PROJECT_ROOT / "data" / "interim" / "dataset1"
+_INTERIM_D2 = _PROJECT_ROOT / "data" / "interim" / "dataset2"
+
+_has_raw = _RAW_D1.exists() and _RAW_D2.exists()
+_has_interim = _INTERIM_D1.exists() and any(_INTERIM_D1.glob("*.parquet"))
+
+needs_raw = pytest.mark.skipif(not _has_raw, reason="raw data files not present")
+needs_interim = pytest.mark.skipif(not _has_interim, reason="interim parquet files not present")
+needs_data = pytest.mark.skipif(not (_has_raw and _has_interim), reason="data files not present")
+
 
 @pytest.fixture
 def registry():
@@ -35,6 +49,7 @@ def loader(registry):
     return DatasetLoader(registry)
 
 
+@needs_data
 def test_registry_datasets_exist(registry):
     datasets = registry.list_datasets()
     assert "dataset1" in datasets
@@ -51,6 +66,7 @@ def test_registry_datasets_exist(registry):
     assert d2.combined_parquet.exists(), f"Missing {d2.combined_parquet}"
 
 
+@needs_data
 def test_registry_experiments_all_exist(registry):
     exps = registry.list_experiments()
     assert len(exps) >= 15
@@ -58,6 +74,7 @@ def test_registry_experiments_all_exist(registry):
         assert exp.path.exists(), f"Experiment file missing: {exp.path}"
 
 
+@needs_raw
 def test_raw_metadata_loading(loader):
     meta1 = loader.get_raw_metadata("dataset1")
     assert meta1["available"] is True
@@ -68,6 +85,7 @@ def test_raw_metadata_loading(loader):
     assert "CPU2_Temperature" in meta1["columns"]
 
 
+@needs_raw
 def test_raw_slice_pagination(loader):
     df_slice = loader.load_raw_slice("dataset1", nrows=25, offset=0)
     assert len(df_slice) == 25
@@ -75,6 +93,7 @@ def test_raw_slice_pagination(loader):
     assert "Time" in df_slice.columns
 
 
+@needs_interim
 def test_interim_server_loading(loader):
     servers = loader.get_interim_servers("dataset1")
     assert len(servers) == 81
@@ -85,6 +104,7 @@ def test_interim_server_loading(loader):
     assert "CPU_Temperature" in df_srv.columns or "CPU1_Temperature" in df_srv.columns
 
 
+@needs_data
 def test_preprocessing_view_dropped_counts(loader):
     view = PreprocessingView(loader)
     comp = view.get_comparison_summary("dataset1")
@@ -98,6 +118,7 @@ def test_preprocessing_view_dropped_counts(loader):
     assert pipeline[2]["function"] == "ttwin.clean.remove_duplicate_timestamps"
 
 
+@needs_interim
 def test_feature_view_sample_generation(loader):
     fview = FeatureView(loader)
     df_feat = fview.generate_server_feature_sample("dataset1", "qh2-rcc120", n_rows=20)
@@ -108,6 +129,7 @@ def test_feature_view_sample_generation(loader):
     assert "CPU_Temperature_rmean_6" in df_feat.columns
 
 
+@needs_interim
 def test_feature_view_correlations(loader):
     fview = FeatureView(loader)
     df_feat = fview.generate_server_feature_sample("dataset1", "qh2-rcc120", n_rows=100)
@@ -129,6 +151,7 @@ def test_model_loader_missing_checkpoint_handled_gracefully(registry):
         assert "Trained checkpoint unavailable" in msg
 
 
+@needs_data
 def test_inference_engine_handles_missing_checkpoint(registry, loader):
     m_loader = ModelLoader(registry)
     engine = ModelInferenceEngine(m_loader, loader)
@@ -147,6 +170,7 @@ def test_inference_engine_handles_missing_checkpoint(registry, loader):
         assert "TEST" in res_real["partition"]
 
 
+@needs_data
 def test_experiment_loader_loads_all_benchmarks(registry):
     exp_loader = ExperimentLoader(registry)
 
@@ -171,6 +195,7 @@ def test_experiment_loader_loads_all_benchmarks(registry):
     assert (df_d1_s1["dataset"] == "dataset1").all()
 
 
+@needs_raw
 def test_schema_validator(loader):
     df_sample = loader.load_raw_slice("dataset1", nrows=50)
     res = SchemaValidator.validate_dataset_schema(

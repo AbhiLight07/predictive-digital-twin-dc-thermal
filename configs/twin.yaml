@@ -1,0 +1,23 @@
+# Twin configuration — derived from data
+# Provenance: derived from data percentiles; not vendor limits
+
+horizons:
+  steps: [1, 6, 36]        # 10 min, 1 h, 6 h at 10-min sampling
+  minutes: [10, 60, 360]
+
+replay:
+  # Test-period starts from protocol.yaml Split A (70/10/20 chronological)
+  # D1: 2018-10-09 to 2019-06-20 (253.9 days) → test starts at day ~203
+  # D2: 2019-02-01 to 2019-06-20 (139.0 days) → test starts at day ~111
+  stride_minutes: 30
+  sampling_interval_minutes: 10
+
+risk_thresholds:
+  # Effective CPU temperature = max(CPU1, CPU2)
+  # Provenance: derived from data percentiles; not vendor limits
+  dataset1:
+    warning_celsius: 73.93   # 90th percentile (n=5495926)
+    critical_celsius: 79.93  # 99th percentile
+  dataset2:
+    warning_celsius: 75.72   # 90th percentile (n=2206436)
+    critical_celsius: 77.63  # 99th percentile

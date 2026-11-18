@@ -21,7 +21,7 @@ This document compiles the empirical results produced by the corrected, leak-fre
 4. **Separation of Operational Regimes:**
    - **Monitoring Regime:** Real-time thermal tracking where telemetry history and current state $T(t)$ are accessible. Evaluated against **Persistence Baseline** ($T(t+h) = T(t)$).
    - **Planning Regime:** Workload-only "what-if" scheduling where temperature sensors are unavailable. Evaluated against **Cluster Mean** and **Local Server Mean** baselines.
-5. **No Hallucinated Claims:** Hardware descriptions reflect verified vendor specifications (Dell PowerEdge R840 is a 2U dense 4-socket server; C6320 is a 2U 4-node modular sled). No unverified causal claims are made.
+5. **No Hallucinated Claims:** Hardware descriptions are as reported in the dataset paper (Ilager et al., UCC 2023): dual-CPU hosts; capacities as in the trace columns; other hardware specifications are unverified. No unverified causal claims are made.
 
 ---
 

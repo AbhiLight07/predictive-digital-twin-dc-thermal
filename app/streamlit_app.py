@@ -324,7 +324,7 @@ elif page == "⚠️ Limitations Panel":
        * In modern servers, chassis fan speeds operate under autonomous firmware closed-loop control (PID / BMC).
        * Fan speed increases *in response* to heat; treating fan speed as an independent explanatory knob without physical intervention is causally unsound.
     4. **Cross-Hardware Transfer Barriers:**
-       * Dell PowerEdge R840 (dense 2U 4-socket server) and Dell PowerEdge C6320 (2U multi-node modular sled) have fundamentally distinct aerodynamic paths and thermal masses.
+       * As reported in the dataset paper (Ilager et al., UCC 2023): dual-CPU hosts; capacities as in the trace columns; other hardware specifications are unverified. The two clusters have fundamentally distinct aerodynamic paths and thermal masses.
        * Raw transfer without local fine-tuning incurs significant bias in planning settings.
     5. **Conformal Coverage Disparities on Extreme Regimes:**
        * Constant-width conformal intervals suffer under-coverage during high-load ($10\text{--}50\%$) and high-temperature ($\ge 60^\circ\text{C}$) spikes.

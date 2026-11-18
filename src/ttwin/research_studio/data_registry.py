@@ -85,7 +85,7 @@ class DataRegistry:
             "dataset1": DatasetDescriptor(
                 name="dataset1",
                 display_name="Cluster 1 (Dell PowerEdge R840)",
-                hardware_description="2U dense 4-socket rack server (4x Intel Xeon Gold 6148, 80 cores, 1.5 TB RAM)",
+                hardware_description="As reported in the dataset paper (Ilager et al., UCC 2023): dual-CPU hosts; capacities as in the trace columns; other hardware specifications are unverified",
                 citation="Ilager et al., UCC 2023 (Zenodo 10.5281/zenodo.10069402)",
                 license="CC BY 4.0",
                 raw_path=self.raw_dir / "dataset1_combined.csv",
@@ -104,7 +104,7 @@ class DataRegistry:
             "dataset2": DatasetDescriptor(
                 name="dataset2",
                 display_name="Cluster 2 (Dell PowerEdge C6320)",
-                hardware_description="2U 4-node modular sled (each node 2x Intel Xeon E5-2697v4, 32 cores, 128 GB RAM)",
+                hardware_description="As reported in the dataset paper (Ilager et al., UCC 2023): dual-CPU hosts; capacities as in the trace columns; other hardware specifications are unverified",
                 citation="Ilager et al., UCC 2023 (Zenodo 10.5281/zenodo.10069402)",
                 license="CC BY 4.0",
                 raw_path=self.raw_dir / "dataset2_combined.csv",

@@ -37,8 +37,8 @@ All data was sourced from the open-access Zenodo repository (Record 10069402, CC
 
 | Attribute | Dataset 1 (Primary Cluster) | Dataset 2 (Secondary Transfer Cluster) |
 |---|---|---|
-| **Chassis / Server Model** | Dell PowerEdge R840 (Rack Unit) | Dell PowerEdge C6320 (High-Density Blade) |
-| **Processor Architecture** | 4-Socket Intel Xeon Gold/Platinum | 2-Socket Intel Xeon E5-2600 v4 |
+| **Chassis / Server Model** | Dell PowerEdge R840 | Dell PowerEdge C6320 |
+| **Processor Architecture** | As reported in the dataset paper (Ilager et al., UCC 2023): dual-CPU hosts; capacities as in the trace columns; other hardware specifications are unverified | As reported in the dataset paper (Ilager et al., UCC 2023): dual-CPU hosts; capacities as in the trace columns; other hardware specifications are unverified |
 | **Total Physical Servers** | **81 servers** (`qh2-rcc120` to `qh2-rcc200`) | **64 servers** (`qh2-rcc201` to `qh2-rcc264`) |
 | **Raw Telemetry Rows** | **2,748,525 rows** | **1,281,024 rows** |
 | **Sampling Cadence** | 10 minutes (600 seconds) | 10 minutes (600 seconds) |
@@ -153,7 +153,7 @@ Evaluated using split conformal prediction across nominal miscoverage levels $\a
 ---
 
 ### 4.5 RQ5: Cross-Cluster Hardware Domain Transfer (E3)
-* **Source:** Cluster 1 (Dell PowerEdge R840, 4-socket, 81 servers)
+* **Source:** Cluster 1 (Dell PowerEdge R840, 81 servers)
 * **Target:** Cluster 2 (Dell PowerEdge C6320, 2-socket high-density, 64 servers)
 * **Features:** 12 shared, harmonized features (CPU load, RAM used, VMs, cyclic calendar, causal temperature lags & rolling stats)
 
@@ -164,7 +164,7 @@ Evaluated using split conformal prediction across nominal miscoverage levels $\a
 | **Transferred Twin (Trained on Cluster 1)** | 1.349°C | 2.220°C | **+0.232°C** |
 
 **Empirical Conclusion for RQ5:**
-The domain shift penalty across completely different server architectures (4-socket rack unit vs. 2-socket high-density compute blade) is only **+0.232°C**. Harmonized physical telemetry features enable effective cross-hardware knowledge transfer without requiring separate models for every hardware generation.
+The domain shift penalty across different server architectures is only **+0.232°C**. Harmonized physical telemetry features enable effective cross-hardware knowledge transfer without requiring separate models for every hardware generation.
 
 ---
 

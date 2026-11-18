@@ -97,7 +97,7 @@ Evaluated using split conformal prediction on calibration sets across nominal co
 
 ## 6. RQ5: Cross-Cluster Hardware Domain Transfer
 
-* **Source Cluster:** Cluster 1 (Dell PowerEdge R840, 4-socket, 81 servers)
+* **Source Cluster:** Cluster 1 (Dell PowerEdge R840, 81 servers)
 * **Target Cluster:** Cluster 2 (Dell PowerEdge C6320, 2-socket high-density, 64 servers)
 * **Features:** 12 strictly shared, harmonized features (CPU load, RAM used, VM counts, cyclic calendar, causal lags/rolling stats)
 

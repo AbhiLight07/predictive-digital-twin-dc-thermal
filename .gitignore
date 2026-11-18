@@ -46,3 +46,12 @@ Thumbs.db
 
 # Snapshot archives
 docs/snapshot.zip
+
+# Large twin model files (>2MB)
+models/twin/d1_planning_0_point.txt
+
+# Large twin model files (>2MB)
+models/twin/d2_monitoring_1_lower.txt
+models/twin/d2_monitoring_1_point.txt
+models/twin/d2_monitoring_1_upper.txt
+models/twin/d2_monitoring_6_upper.txt

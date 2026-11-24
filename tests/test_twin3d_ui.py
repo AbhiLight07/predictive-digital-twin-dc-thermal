@@ -240,6 +240,36 @@ def test_3db_and_3dc_end_to_end_webgl(live_server_url):
         wi_text = page.locator("#whatif-result").inner_text()
         assert "correlational - not causal" in wi_text.lower()
 
+        # 7. 3D-D: Anatomy view on D1 host (real fans + inlet) then D2 host (static grey "no fan sensor" / "no inlet sensor")
+        page.click("#btn-inspect-server")
+        page.wait_for_timeout(700)
+        d1_anat = page.evaluate("() => window.__twin3d.getStats()")
+        assert d1_anat["anatomyMode"] is True
+        assert d1_anat["anatomyHasFans"] is True
+        assert d1_anat["anatomyHasInlet"] is True
+        assert "not airflow physics" in page.locator("#anatomy-overlay").inner_text().lower()
+        assert page.locator("#anatomy-chart-wrap").is_visible()
+
+        page.click("#btn-back-hall")
+        page.wait_for_timeout(400)
+        page.select_option("#sel-cluster", "d2")
+        page.wait_for_timeout(600)
+        assert "D2: no fan sensors" in page.locator("#legend-extra").inner_text()
+
+        page.click("#btn-inspect-server")
+        page.wait_for_timeout(700)
+        d2_anat = page.evaluate("() => window.__twin3d.getStats()")
+        assert d2_anat["anatomyMode"] is True
+        assert d2_anat["anatomyHasFans"] is False
+        assert d2_anat["anatomyHasInlet"] is False
+        assert d2_anat["anatomyFanLabel"] == "no fan sensor"
+        assert d2_anat["anatomyInletLabel"] == "no inlet sensor"
+
+        # 8. 3D-D: Palette switch (viridis -> cividis)
+        page.select_option("#sel-palette", "cividis")
+        page.wait_for_timeout(300)
+        assert page.evaluate("() => window.__twin3d.getStats().palette") == "cividis"
+
         browser.close()
 
     assert console_errors == [], f"Console errors: {console_errors}"

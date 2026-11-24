@@ -43,9 +43,15 @@ canvas { display: block; width: 100%; height: 100%; }
 }
 #anatomy-overlay {
   display: none; position: fixed; top: 42px; left: 50%; transform: translateX(-50%);
-  z-index: 100; background: rgba(16,20,28,0.92); border: 1px solid #5ec962; border-radius: 5px;
+  z-index: 100; background: rgba(16,20,28,0.94); border: 1px solid #5ec962; border-radius: 5px;
   padding: 6px 12px; font-size: 12px; align-items: center; gap: 10px;
 }
+#anatomy-chart-wrap {
+  display: none; position: fixed; bottom: 62px; left: 12px; right: 356px;
+  background: rgba(14,17,24,0.94); border: 1px solid #333c4e; border-radius: 5px;
+  padding: 6px 10px; z-index: 95;
+}
+#canvas-anatomy-chart { width: 100%; height: 110px; display: block; }
 #panel {
   position: fixed; top: 30px; right: 0; width: 340px; bottom: 52px;
   background: rgba(15, 18, 25, 0.96); border-left: 1px solid #2b3242;
@@ -109,8 +115,12 @@ canvas.mini-chart { width: 100%; height: 68px; border: 1px solid #2b3242; border
 <div id="compare-stats"></div>
 <div id="anatomy-overlay">
   <span id="anatomy-title">Server Anatomy View</span>
-  <span class="muted">artistic mapping of recorded sensor values - not airflow physics</span>
+  <span class="muted">artistic mapping of recorded sensor values - not airflow physics · visual scaling, not true RPM</span>
   <button class="btn" id="btn-back-hall">Back to hall</button>
+</div>
+<div id="anatomy-chart-wrap">
+  <div style="font-size:11px;color:#9ec5f8;margin-bottom:3px;" id="anatomy-chart-caption">Last 24 hours & Forecast Bands</div>
+  <canvas id="canvas-anatomy-chart" width="840" height="110"></canvas>
 </div>
 <div id="status-overlay">Loading Digital Twin models & telemetry...</div>
 

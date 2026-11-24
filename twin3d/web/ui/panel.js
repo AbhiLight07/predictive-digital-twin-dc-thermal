@@ -25,6 +25,7 @@ export class PanelController {
     this.elBtnInspect = document.getElementById("btn-inspect-server");
     this.elCanvasSpark = document.getElementById("canvas-sparkline");
     this.elCanvasFan = document.getElementById("canvas-fan");
+    this.elCanvasAnatomy = document.getElementById("canvas-anatomy-chart");
 
     // What-If controls
     this.elWiTarget = document.getElementById("sel-whatif-target");
@@ -207,6 +208,9 @@ export class PanelController {
   drawSeriesCharts(seriesData) {
     this._drawSparkline(this.elCanvasSpark, seriesData);
     this._drawFanChart(this.elCanvasFan, seriesData);
+    if (this.elCanvasAnatomy) {
+      this._drawSparkline(this.elCanvasAnatomy, seriesData);
+    }
   }
 
   _drawSparkline(canvas, s) {

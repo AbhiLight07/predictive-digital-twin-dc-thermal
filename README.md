@@ -61,7 +61,15 @@ python scripts/data_audit.py data/raw/dataset2_combined.csv
 pytest tests/ -v
 ```
 
-### Run the Digital Twin Demo
+### Run the 3D Predictive Digital Twin
+
+```bash
+python scripts/run_twin3d.py
+```
+
+Opens the FastAPI + offline Three.js 3D digital twin (`http://127.0.0.1:8000`) using trained models (`models/twin/`) and cached test forecasts (`data/twin_cache/`). See [docs/twin3d_user_guide.md](docs/twin3d_user_guide.md) and [docs/twin3d_demo_script.md](docs/twin3d_demo_script.md).
+
+### Run the Legacy Streamlit Explorer
 
 ```bash
 streamlit run app/streamlit_app.py
@@ -92,11 +100,18 @@ streamlit run app/streamlit_app.py
 │   ├── models.py               Model definitions
 │   ├── adapt.py                Cold-start adaptation
 │   ├── uncertainty.py          Uncertainty quantification
-│   └── eval.py                 Experiment evaluation
+│   ├── eval.py                 Experiment evaluation
+│   ├── twin/                   Offline TwinEngine & dataclasses
+│   └── twin3d/                 FastAPI 3D twin API server
+├── twin3d/web/                 Offline Three.js 3D frontend (vendored Three.js)
 ├── scripts/                    Runnable scripts
 │   ├── data_audit.py           Dataset audit (Phase 1)
 │   ├── make_parquet.py         CSV → Parquet conversion
-│   └── run_experiment.py       Experiment runner
+│   ├── run_experiment.py       Experiment runner
+│   ├── train_twin_models.py    Train twin monitoring & planning CQR models
+│   ├── build_twin_cache.py     Build test-partition forecast parquet caches
+│   ├── run_twin3d.py           Launch 3D digital twin web server
+│   └── validate_twin3d.py      Capture screenshots, soak metrics, & validation report
 ├── experiments/                Experiment results (small files only)
 ├── app/                        Streamlit digital twin
 │   └── streamlit_app.py

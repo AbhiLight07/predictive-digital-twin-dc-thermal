@@ -14,6 +14,7 @@ import { TwinAPI } from "./api.js";
 import { ColorMapper } from "./colors.js";
 import { HallScene } from "./scene/hall.js";
 import { ServerFleetScene } from "./scene/servers.js";
+import { ServerAnatomyScene } from "./scene/anatomy.js";
 import { HudController } from "./ui/hud.js";
 import { PanelController } from "./ui/panel.js";
 
@@ -70,6 +71,7 @@ const api = new TwinAPI();
 const colors = new ColorMapper();
 const hall = new HallScene(scene);
 const fleet = new ServerFleetScene(scene, colors);
+const anatomy = new ServerAnatomyScene(scene, colors);
 
 const state = {
   meta: null,
@@ -125,16 +127,12 @@ function getCameraPreset(preset) {
 const panel = new PanelController({
   onSelectHostKey: (key, fly = true) => selectHostByKey(key, fly),
   onWhatIfChange: (wiReq) => runWhatIf(wiReq),
-  onInspectSelected: () => {
-    if (!state.selectedHostKey) return;
-    document.getElementById("anatomy-overlay").style.display = "flex";
-    const p = getCameraPreset("selected");
-    flyCamera([p.pos[0] - 0.5, p.pos[1] - 0.1, p.pos[2] - 0.7], p.target);
-  },
+  onInspectSelected: () => enterAnatomyMode(),
 });
 
 const hud = new HudController({
   onClusterChange: (c) => {
+    if (state.anatomyMode) exitAnatomyMode();
     state.clusterFilter = c;
     hud.buildTimeline(state.meta, c);
     panel.renderProvenance(c);
@@ -184,11 +182,42 @@ const hud = new HudController({
   },
 });
 
-document.getElementById("btn-back-hall").addEventListener("click", () => {
+document.getElementById("btn-back-hall").addEventListener("click", () => exitAnatomyMode());
+
+function enterAnatomyMode() {
+  if (!state.selectedHostKey) return;
+  const idx = fleet.hostByKey.get(state.selectedHostKey);
+  if (idx == null) return;
+  const host = fleet.hosts[idx];
+  if (state.compareMode) {
+    state.compareMode = false;
+    hud.elCompare.checked = false;
+    hud.updateCompareHud(false, null, false, "right");
+  }
+  state.anatomyMode = true;
+  hall.setVisible(false);
+  fleet.setVisible(false);
+  const leg = state.legendsByCluster[host.cluster || "d1"];
+  anatomy.setHost(host, leg);
+  anatomy.setVisible(true);
+  document.getElementById("anatomy-title").textContent = `Anatomy: ${host.id} (${(host.cluster || "d1").toUpperCase()})`;
+  document.getElementById("anatomy-overlay").style.display = "flex";
+  document.getElementById("anatomy-chart-wrap").style.display = "block";
+  document.getElementById("anatomy-chart-caption").textContent = `${host.id} — Last 24h Observed (°C) & CQR Forecast Band`;
+  flyCamera([1.35, 0.92, 1.75], [0.0, 0.25, 0.0]);
+}
+
+function exitAnatomyMode() {
+  if (!state.anatomyMode) return;
+  state.anatomyMode = false;
+  anatomy.setVisible(false);
+  hall.setVisible(true);
+  fleet.setVisible(true);
   document.getElementById("anatomy-overlay").style.display = "none";
+  document.getElementById("anatomy-chart-wrap").style.display = "none";
   const p = getCameraPreset("overview");
   flyCamera(p.pos, p.target);
-});
+}
 
 function refreshLegend() {
   if (!state.meta) return;
@@ -278,7 +307,7 @@ async function refreshFrame() {
 
     if (state.selectedHostKey && fleet.hostByKey.has(state.selectedHostKey)) {
       await selectHostByKey(state.selectedHostKey, false);
-    } else if (snap.hosts.length > 0 && !state.selectedHostKey) {
+    } else if (snap.hosts.length > 0) {
       await selectHostByKey(`${snap.hosts[0].cluster}|${snap.hosts[0].id}`, false);
     }
 
@@ -305,6 +334,12 @@ function renderCurrentData() {
     showHalos: state.horizon > 0,
     defaultCluster: state.clusterFilter === "d2" ? "d2" : "d1",
   });
+
+  if (state.anatomyMode && state.selectedHostKey && fleet.hostByKey.has(state.selectedHostKey)) {
+    const idx = fleet.hostByKey.get(state.selectedHostKey);
+    const h = fleet.hosts[idx];
+    anatomy.setHost(h, state.legendsByCluster[h.cluster || "d1"]);
+  }
 }
 
 // Pointer hover & click selection
@@ -352,6 +387,13 @@ window.__twin3d = {
     horizon: state.horizon,
     ghostVisible: fleet.ghostGroup.visible,
     ghostColorHex: fleet.ghostMat.color.getHexString(),
+    palette: colors.palette,
+    anatomyMode: state.anatomyMode,
+    anatomyHostId: anatomy.host?.id || null,
+    anatomyHasFans: anatomy.hasFans,
+    anatomyHasInlet: anatomy.hasInlet,
+    anatomyFanLabel: anatomy.fanStatusText,
+    anatomyInletLabel: anatomy.inletStatusText,
   }),
   jumpToTime: (iso) => hud.setTimeToIso(iso),
 };
@@ -407,6 +449,13 @@ function animate(now) {
       renderer.render(scene, camera);
     }
     renderer.setScissorTest(false);
+  } else if (state.anatomyMode) {
+    anatomy.tick(now / 1000, dt);
+    if (state.bloomEnabled) {
+      composer.render();
+    } else {
+      renderer.render(scene, camera);
+    }
   } else {
     fleet.tick(now, dt);
     fleet.halos.visible = state.horizon > 0 && fleet.halosEnabled;

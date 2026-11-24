@@ -89,6 +89,7 @@ const state = {
   lastCompareData: null,
   legendsByCluster: {},
   alertsMap: new Map(),
+  lastSingleCompareKey: "",
 };
 
 // Camera flight interpolation (zero per-frame allocations)
@@ -164,6 +165,7 @@ const hud = new HudController({
       hud.elHorizon.value = "6";
     }
     if (!on) {
+      state.lastSingleCompareKey = "";
       const w = container.clientWidth, h = container.clientHeight;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
@@ -446,9 +448,14 @@ function animate(now) {
       renderer.setViewport(0, 0, w, h);
       renderer.setScissor(0, 0, w, h);
       fleet.halos.visible = state.singleSide === "right" && state.horizon > 0;
-      fleet.applyCompareSide(state.singleSide, state.errorOverlay, state.legendsByCluster);
+      const cmpKey = `${state.lastCompareData.target_time}|${state.lastCompareData.horizon}|${state.singleSide}|${state.errorOverlay}|${colors.palette}`;
+      if (cmpKey !== state.lastSingleCompareKey) {
+        fleet.applyCompareSide(state.singleSide, state.errorOverlay, state.legendsByCluster);
+        state.lastSingleCompareKey = cmpKey;
+      }
       renderer.render(scene, camera);
     } else {
+      state.lastSingleCompareKey = "";
       const halfW = Math.floor(w / 2);
       camera.aspect = Math.max(1, halfW) / Math.max(1, h);
       camera.updateProjectionMatrix();

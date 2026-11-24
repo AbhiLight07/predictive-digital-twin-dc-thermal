@@ -71,6 +71,7 @@ export class ServerFleetScene {
     this._prevGlow = new Float32Array(MAX_HOSTS * 3);
     this._nextGlow = new Float32Array(MAX_HOSTS * 3);
     this._hasPrevGlow = false;
+    this._easingActive = false;
     this._easeStart = 0;
 
     // Shader time uniform for fans & beacons
@@ -352,6 +353,7 @@ export class ServerFleetScene {
       this._prevGlow.set(this.glows.instanceColor.array);
     }
     this._easeStart = performance.now();
+    this._easingActive = true;
 
     this.slabs.instanceMatrix.needsUpdate = true;
     this.glows.instanceMatrix.needsUpdate = true;
@@ -434,9 +436,9 @@ export class ServerFleetScene {
   tick(nowMs, dtSec) {
     this._uTime.value += dtSec;
 
-    // Ease glow colours over 300ms
+    // Ease glow colours over 300ms (skip GPU buffer uploads once complete)
     const n = this.glows.count;
-    if (n > 0 && this._hasPrevGlow) {
+    if (n > 0 && this._hasPrevGlow && this._easingActive) {
       const t = Math.min(1, (nowMs - this._easeStart) / EASE_DURATION_MS);
       const attr = this.glows.instanceColor;
       const arr = attr.array;
@@ -444,6 +446,9 @@ export class ServerFleetScene {
         arr[i] = this._prevGlow[i] + t * (this._nextGlow[i] - this._prevGlow[i]);
       }
       attr.needsUpdate = true;
+      if (t >= 1) {
+        this._easingActive = false;
+      }
     }
 
     // Subtle pulse on risk beacons via material opacity

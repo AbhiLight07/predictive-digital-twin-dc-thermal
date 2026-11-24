@@ -259,7 +259,24 @@ async function runWhatIf(wiReq) {
       cluster = c;
       hostId = id;
     }
-    const res = await api.postWhatIf({ cluster, host: hostId, workload: wiReq.workload, include_curve: true });
+    const tIso = hud.getCurrentTimeIso();
+    let hour = 12;
+    let weekday = 2;
+    if (tIso) {
+      const dt = new Date(tIso);
+      if (!Number.isNaN(dt.getTime())) {
+        hour = dt.getUTCHours();
+        weekday = (dt.getUTCDay() + 6) % 7;
+      }
+    }
+    const res = await api.postWhatIf({
+      cluster,
+      host: hostId,
+      workload: wiReq.workload,
+      hour,
+      weekday,
+      include_curve: true,
+    });
     panel.updateWhatIfResult(res);
     const leg = state.legendsByCluster[cluster];
     if (hostId && fleet.hostByKey.has(`${cluster}|${hostId}`)) {

@@ -52,12 +52,23 @@ def test_dry_run_exits_zero():
     assert exit_code == 0
 
 
-def test_reuse_existing_creates_manifest():
-    """--reuse-existing must write execution_manifest.json with complete metadata."""
+def test_reuse_existing_creates_manifest(monkeypatch, tmp_path):
+    """--reuse-existing must write execution_manifest.json without mutating tracked files."""
+    import scripts.run_v3_experiments as run_v3_mod
+
+    for exp in EXPERIMENT_CATALOG:
+        dst = tmp_path / exp["file"]
+        src = OUT_DIR / exp["file"]
+        if src.exists():
+            dst.write_bytes(src.read_bytes())
+        else:
+            dst.write_text("placeholder\n", encoding="utf-8")
+
+    monkeypatch.setattr(run_v3_mod, "OUT_DIR", tmp_path)
     exit_code = main(["--reuse-existing"])
     assert exit_code == 0
 
-    manifest_path = OUT_DIR / "execution_manifest.json"
+    manifest_path = tmp_path / "execution_manifest.json"
     assert manifest_path.exists()
 
     with open(manifest_path, "r", encoding="utf-8") as f:

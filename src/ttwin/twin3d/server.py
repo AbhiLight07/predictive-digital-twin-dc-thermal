@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+import yaml
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -201,7 +202,18 @@ class WhatIfRequest(BaseModel):
     host: Optional[str] = None
     capacity: Optional[CapacityInput] = None
     workload: WorkloadInput = Field(default_factory=WorkloadInput)
+    hour: Optional[int] = Field(default=None, ge=0, le=23)
+    weekday: Optional[int] = Field(default=None, ge=0, le=6)
     include_curve: bool = True
+
+
+def _load_twin_thresholds(cluster: str) -> Tuple[float, float]:
+    cfg_path = _REPO / "configs" / "twin.yaml"
+    with open(cfg_path, encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+    ds = "dataset1" if cluster == "d1" else "dataset2"
+    rt = cfg["risk_thresholds"][ds]
+    return float(rt["warning_celsius"]), float(rt["critical_celsius"])
 
 
 # ── Service layer (indexed for <100 ms snapshots) ────────────────────
@@ -221,6 +233,10 @@ class _ClusterIndex:
         self.layouts: Dict[str, dict] = {h: _layout(cluster, i) for i, h in enumerate(self.hosts)}
 
         self.statics: Dict[str, Any] = {h: engine.static(h) for h in self.hosts}
+        cores_vals = [float(s.cores) for s in self.statics.values() if s.cores]
+        ram_vals = [float(s.ram_gb) for s in self.statics.values() if s.ram_gb]
+        self.default_cores = float(np.median(cores_vals)) if cores_vals else 0.0
+        self.default_ram_gb = float(np.median(ram_vals)) if ram_vals else 0.0
 
         # Telemetry numpy index when underlying DataFrame is present
         self.has_df_index = False
@@ -246,8 +262,9 @@ class _ClusterIndex:
         self.time_min, self.time_max = self._compute_time_range(data, cache_df)
         self.meta_dict = getattr(engine, "_meta", {}) or {}
         self.models_info = getattr(engine, "_models_info", {}) or {}
-        self.warn_thresh = float(getattr(engine, "_warn_thresh", 73.93 if cluster == "d1" else 75.72))
-        self.crit_thresh = float(getattr(engine, "_crit_thresh", 79.93 if cluster == "d1" else 77.63))
+        cfg_warn, cfg_crit = _load_twin_thresholds(cluster)
+        self.warn_thresh = float(getattr(engine, "_warn_thresh", cfg_warn))
+        self.crit_thresh = float(getattr(engine, "_crit_thresh", cfg_crit))
 
     def _build_df_index(self, data: pd.DataFrame) -> None:
         self.has_df_index = True
@@ -1252,9 +1269,9 @@ class Twin3DService:
         cidx = self.ensure_cluster(req.cluster)
         eng = cidx.engine
 
-        # Resolve host capacity or defaults
-        cores = 64.0 if req.cluster == "d1" else 80.0
-        ram_gb = 64.45 if req.cluster == "d1" else 193.33
+        # Resolve host capacity or cluster median defaults
+        cores = cidx.default_cores
+        ram_gb = cidx.default_ram_gb
         if req.host:
             if req.host not in cidx.statics:
                 raise HTTPException(status_code=404, detail=f"Host '{req.host}' not found in '{req.cluster}'")
@@ -1268,6 +1285,12 @@ class Twin3DService:
                 ram_gb = float(req.capacity.ram_gb)
 
         w = req.workload
+        hr = 12 if req.hour is None else req.hour
+        wd = 2 if req.weekday is None else req.weekday
+        hour_sin = math.sin(2.0 * math.pi * hr / 24.0)
+        hour_cos = math.cos(2.0 * math.pi * hr / 24.0)
+        dow_sin = math.sin(2.0 * math.pi * wd / 7.0)
+        dow_cos = math.cos(2.0 * math.pi * wd / 7.0)
 
         def _build_wl(cpu_load_val: float) -> dict:
             return {
@@ -1279,10 +1302,10 @@ class Twin3DService:
                 "No_Of_Running_vms": w.vms,
                 "Network_RX": w.net_rx,
                 "Network_TX": w.net_tx,
-                "hour_sin": 0.0,
-                "hour_cos": 1.0,
-                "dow_sin": 0.0,
-                "dow_cos": 1.0,
+                "hour_sin": hour_sin,
+                "hour_cos": hour_cos,
+                "dow_sin": dow_sin,
+                "dow_cos": dow_cos,
                 "CPU_Load_rmean_6": cpu_load_val,
                 "CPU_Load_rmean_36": cpu_load_val,
                 "Ram_Used_rmean_6": w.ram_used,

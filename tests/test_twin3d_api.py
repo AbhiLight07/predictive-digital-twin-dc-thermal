@@ -452,6 +452,16 @@ def test_whatif_endpoint(synthetic_client):
     # Increasing load monotonically increases point in synthetic model
     assert w["sensitivity_curve"][-1]["point"] > w["sensitivity_curve"][0]["point"]
 
+    # Explicit hour/weekday calendar fields + new-server cluster-median defaults
+    r_cal = synthetic_client.post(
+        "/api/whatif",
+        json={"cluster": "d2", "hour": 14, "weekday": 4, "workload": {"cpu_load": 50.0}},
+    )
+    assert r_cal.status_code == 200
+    assert r_cal.json()["capacity"]["cores"] == 80.0
+    assert r_cal.json()["capacity"]["ram_gb"] == 192.0
+    assert synthetic_client.post("/api/whatif", json={"cluster": "d1", "hour": 25}).status_code == 422
+
 
 def test_503_on_missing_model():
     def _failing_factory(c: str):

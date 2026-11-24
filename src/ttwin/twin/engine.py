@@ -23,6 +23,7 @@ from ttwin.twin.schema import (
     RiskLevel,
     SensorReading,
 )
+from ttwin.clean import fill_missing_timestamps
 from ttwin.features import (
     compute_effective_cpu_temp,
     add_calendar_features,
@@ -251,7 +252,11 @@ class TwinEngine:
         if len(past) < 2:
             return [self._unknown_forecast(host, t, h) for h in self._horizons]
 
-        # Build monitoring features on past data only
+        gap_min = (t - past["Time"].max()).total_seconds() / 60.0
+        if gap_min > _STALE_MINUTES:
+            return [self._unknown_forecast(host, t, h) for h in self._horizons]
+
+        # Build monitoring features on past data only (aligned to 10-min grid)
         feat_df = self._build_monitoring_features(past)
         if len(feat_df) == 0:
             return [self._unknown_forecast(host, t, h) for h in self._horizons]
@@ -271,9 +276,9 @@ class TwinEngine:
                 continue
 
             feat_names = info["feature_names"]
-            # Check all features exist
+            # Check all features exist and are non-NaN (e.g., after a gap)
             missing_feats = [f for f in feat_names if f not in last_row.index]
-            if missing_feats:
+            if missing_feats or pd.isna(last_row[feat_names]).any():
                 forecasts.append(self._unknown_forecast(host, t, h))
                 continue
 
@@ -465,16 +470,13 @@ class TwinEngine:
                 np.where(upper_abs >= self._warn_thresh, "warning", "normal")
             )
 
-            # Actual future temperature (join if available)
+            # Actual future temperature (O(1) dict lookup per timestamp)
             horizon_td = pd.Timedelta(minutes=h * 10)
-            actual_future = np.full(len(avail), np.nan)
-            for i, t_val in enumerate(times):
-                future_t = pd.Timestamp(t_val) + horizon_td
-                future_rows = hdata[hdata["Time"] == future_t]
-                if len(future_rows) > 0 and "CPU_Temperature" in future_rows.columns:
-                    val = future_rows["CPU_Temperature"].iloc[0]
-                    if not pd.isna(val):
-                        actual_future[i] = val
+            temp_by_time = dict(zip(hdata["Time"], hdata["CPU_Temperature"]))
+            actual_future = np.array(
+                [temp_by_time.get(pd.Timestamp(t_val) + horizon_td, np.nan) for t_val in times],
+                dtype=np.float64,
+            )
 
             for i in range(len(avail)):
                 rows.append({
@@ -495,10 +497,9 @@ class TwinEngine:
     # ── Internal helpers ──────────────────────────────────────────────
 
     def _build_monitoring_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Build S1 monitoring features (causal only)."""
-        df = df.copy()
-        if "CPU_Temperature" not in df.columns:
-            df = compute_effective_cpu_temp(df)
+        """Build S1 monitoring features on a regular 10-min grid (matching training)."""
+        df = fill_missing_timestamps(df, host_col="Series", time_col="Time", freq="10min")
+        df = compute_effective_cpu_temp(df)
         df = add_calendar_features(df, "Time")
         temp_cols = [c for c in ["CPU_Temperature", "CPU1_Temperature", "CPU2_Temperature"] if c in df.columns]
         df = add_lag_features(df, temp_cols, [1, 2, 3, 6, 12], "Series")

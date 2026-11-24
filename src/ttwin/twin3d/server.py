@@ -635,7 +635,8 @@ class Twin3DService:
         m_lo = models_dict.get(f"{cidx.cluster}_monitoring_{horizon}_lower")
         m_hi = models_dict.get(f"{cidx.cluster}_monitoring_{horizon}_upper")
 
-        # Gather strictly past tail windows (max 60 rows per host)
+        # Gather strictly past 420-min windows (42 regular 10-min steps > max rolling=36 & lag=12)
+        window_start_ns = issue_ns - int(420 * 60 * 1_000_000_000)
         tail_frames = []
         for host in cidx.hosts:
             times = cidx.host_times_ns.get(host)
@@ -646,7 +647,7 @@ class Twin3DService:
                 continue
             if (issue_ns - int(times[end_pos - 1])) > _STALE_NS:
                 continue
-            start_pos = max(0, end_pos - 60)
+            start_pos = int(np.searchsorted(times, window_start_ns, side="left"))
             tail_frames.append(cidx.host_df[host].iloc[start_pos:end_pos])
 
         if not tail_frames:

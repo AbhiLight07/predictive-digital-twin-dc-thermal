@@ -18,18 +18,14 @@ TWIN_DIR = ROOT / "models" / "twin"
 CACHE_DIR = ROOT / "data" / "twin_cache"
 
 _has_models = (TWIN_DIR / "d1_metadata.json").exists()
-_has_cache = (CACHE_DIR / "d1_forecasts.parquet").exists()
 
 needs_models = pytest.mark.skipif(not _has_models, reason="twin models not present")
-needs_cache = pytest.mark.skipif(not _has_cache, reason="twin cache not present")
-
-# ── Helpers ───────────────────────────────────────────────────────────
 
 
 @pytest.fixture(scope="module")
 def d1_engine():
     """Load a real D1 engine (skipped if data missing)."""
-    if not _has_models:
+    if not (TWIN_DIR / "d1_metadata.json").exists():
         pytest.skip("models not present")
     from ttwin.twin.engine import TwinEngine
     return TwinEngine("d1")
@@ -37,9 +33,10 @@ def d1_engine():
 
 @pytest.fixture(scope="module")
 def d1_cache():
-    if not _has_cache:
+    cache_path = CACHE_DIR / "d1_forecasts.parquet"
+    if not cache_path.exists():
         pytest.skip("cache not present")
-    return pd.read_parquet(CACHE_DIR / "d1_forecasts.parquet")
+    return pd.read_parquet(cache_path)
 
 
 # ── T3.1 No future leakage ───────────────────────────────────────────
@@ -80,7 +77,6 @@ def test_no_future_leakage(d1_engine):
 # ── T3.2 Train/serve parity ──────────────────────────────────────────
 
 @needs_models
-@needs_cache
 def test_train_serve_parity(d1_engine, d1_cache):
     """Engine forecast for a sample (host, t) equals the cache row within 1e-6."""
     cache = d1_cache
@@ -163,7 +159,6 @@ def test_interval_ordering_and_risk(d1_engine):
     for fc in fcs:
         if not np.isnan(fc.lower) and not np.isnan(fc.upper):
             assert fc.lower <= fc.upper, f"lower > upper at h={fc.horizon_steps}"
-
         # Check risk consistency
         if not np.isnan(fc.upper):
             if fc.upper >= engine._crit_thresh:
@@ -172,6 +167,65 @@ def test_interval_ordering_and_risk(d1_engine):
                 assert fc.risk == RiskLevel.WARNING or fc.risk.value == "warning"
             else:
                 assert fc.risk == RiskLevel.NORMAL or fc.risk.value == "normal"
+
+
+# ── T3.6 Gap parity between training and serving ─────────────────────
+
+
+def test_gap_parity_matches_training(d1_engine):
+    """Deliberate 40-min gap must produce exact training-time NaNs and UNKNOWN risk."""
+    import sys
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    from scripts.train_twin_models import build_monitoring_features
+
+    # Build a 60-step series with steps 40..43 dropped (40-min gap)
+    base = pd.Timestamp("2019-05-01 00:00:00")
+    rows = []
+    for i in range(60):
+        if i in (40, 41, 42, 43):
+            continue
+        rows.append({
+            "Series": "qh2-rcc120",
+            "Time": base + pd.Timedelta(minutes=10 * i),
+            "CPU1_Temperature": 45.0 + 0.2 * i,
+            "CPU2_Temperature": 44.0 + 0.2 * i,
+        })
+    raw_df = pd.DataFrame(rows)
+    train_feat = build_monitoring_features(raw_df)
+    serve_feat = d1_engine._build_monitoring_features(raw_df)
+
+    # Identical regular 10-min index and feature columns
+    assert len(serve_feat) == len(train_feat) == 60
+    assert (serve_feat["Time"].values == train_feat["Time"].values).all()
+
+    feat_cols = d1_engine._models_info["monitoring_1"]["feature_names"]
+    for col in feat_cols:
+        assert col in serve_feat.columns
+        np.testing.assert_allclose(
+            serve_feat[col].to_numpy(dtype=np.float64),
+            train_feat[col].to_numpy(dtype=np.float64),
+            equal_nan=True,
+            err_msg=f"Train/serve gap parity mismatch in {col}",
+        )
+
+    # At row right after the 40-min gap (step 44), lag_1 must be NaN -> UNKNOWN risk
+    t_after_gap = base + pd.Timedelta(minutes=10 * 44)
+    row_after = serve_feat[serve_feat["Time"] == t_after_gap].iloc[0]
+    assert pd.isna(row_after["CPU_Temperature_lag_1"])
+
+    orig_data = d1_engine._data
+    try:
+        from ttwin.features import compute_effective_cpu_temp
+        d1_engine._data = compute_effective_cpu_temp(raw_df)
+        fcs_after = d1_engine.forecast("qh2-rcc120", t_after_gap)
+        assert all(fc.risk.value == "unknown" for fc in fcs_after)
+        # Querying inside gap (>30 min past latest observation at step 39) -> stale -> UNKNOWN
+        t_in_gap = base + pd.Timedelta(minutes=10 * 43)
+        fcs_stale = d1_engine.forecast("qh2-rcc120", t_in_gap)
+        assert all(fc.risk.value == "unknown" for fc in fcs_stale)
+    finally:
+        d1_engine._data = orig_data
 
 
 # Import after function definitions to avoid circular issues

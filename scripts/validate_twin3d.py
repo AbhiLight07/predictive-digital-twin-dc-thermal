@@ -8,6 +8,7 @@ measured results into docs/twin3d_validation.md.
 
 from __future__ import annotations
 
+import argparse
 import io
 import json
 import re
@@ -164,6 +165,14 @@ def _verify_png_nonblank(path: Path) -> float:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Validate the 3D predictive digital twin.")
+    parser.add_argument(
+        "--record-video",
+        action="store_true",
+        help="Re-record docs/twin3d_demo.webm (disabled by default to avoid git bloat).",
+    )
+    args = parser.parse_args()
+
     print("Loading real D1/D2 Twin3DService...")
     svc = Twin3DService()
     svc.ensure_all()
@@ -216,24 +225,29 @@ def main() -> None:
         with sync_playwright() as p:
             browser = p.chromium.launch(channel="chrome", headless=True, args=chrome_args)
 
-            # 1. Walkthrough + Screenshots + Video recording (graceful fallback if ffmpeg unavailable)
-            use_video = True
-            try:
-                ctx = browser.new_context(
-                    viewport={"width": 1440, "height": 900},
-                    record_video_dir=str(video_tmp_dir),
-                    record_video_size={"width": 1280, "height": 800},
-                )
-                page = ctx.new_page()
-            except Exception as vid_exc:
-                use_video = False
-                video_note = f"Video recording skipped ({vid_exc})"
+            # 1. Walkthrough + Screenshots (+ optional Video recording via --record-video)
+            use_video = bool(args.record_video)
+            if use_video:
                 try:
-                    ctx.close()
-                except Exception:
-                    pass
+                    ctx = browser.new_context(
+                        viewport={"width": 1440, "height": 900},
+                        record_video_dir=str(video_tmp_dir),
+                        record_video_size={"width": 1280, "height": 800},
+                    )
+                    page = ctx.new_page()
+                except Exception as vid_exc:
+                    use_video = False
+                    video_note = f"Video recording skipped ({vid_exc})"
+                    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+                    page = ctx.new_page()
+            else:
                 ctx = browser.new_context(viewport={"width": 1440, "height": 900})
                 page = ctx.new_page()
+                if _VIDEO_PATH.exists():
+                    video_ok = True
+                    video_note = f"Kept existing {round(_VIDEO_PATH.stat().st_size / 1024, 1)} KB webm (--record-video omitted)"
+                else:
+                    video_note = "Skipped (--record-video not passed)"
 
             def _route(route):
                 url = route.request.url

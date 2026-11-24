@@ -153,21 +153,26 @@ def _evaluate_window(engine: TwinEngine, win_df: pd.DataFrame, scenario: str, on
     crossed = len(crossed_idx) > 0
     detected = bool(alert_mask.any())
     lead_min = None
-    if detected and crossed:
+    delay_min = None
+    if detected:
         t_first_alert = times.iloc[int(np.where(alert_mask)[0][0])]
-        t_first_cross = times.iloc[int(crossed_idx[0])]
-        lead_min = (t_first_cross - t_first_alert).total_seconds() / 60.0
+        t_onset = times.iloc[0]
+        delay_min = (t_first_alert - t_onset).total_seconds() / 60.0
+        if crossed:
+            t_first_cross = times.iloc[int(crossed_idx[0])]
+            lead_min = (t_first_cross - t_first_alert).total_seconds() / 60.0
 
     return {
         "detected": detected,
         "crossed_warn": crossed,
         "lead_time_min": lead_min,
+        "delay_from_onset_min": delay_min,
     }
 
 
 def main() -> None:
     seed = 42
-    n_windows = 12
+    n_windows = 25
     onset_idx = 72  # 12h pre-onset history
 
     rows = []
@@ -181,6 +186,7 @@ def main() -> None:
             n_cross = sum(1 for e in evals if e["crossed_warn"])
             det_on_cross = sum(1 for e in evals if e["detected"] and e["crossed_warn"])
             leads = [e["lead_time_min"] for e in evals if e["lead_time_min"] is not None]
+            delays = [e["delay_from_onset_min"] for e in evals if e["delay_from_onset_min"] is not None]
             rows.append({
                 "cluster": cluster.upper(),
                 "scenario": sc,
@@ -189,6 +195,7 @@ def main() -> None:
                 "n_alerts": n_det,
                 "alert_rate_all": round(n_det / len(windows), 4),
                 "detection_rate_crossed": round(det_on_cross / n_cross, 4) if n_cross > 0 else None,
+                "median_delay_from_onset_min": round(float(np.median(delays)), 1) if delays else None,
                 "median_lead_time_min": round(float(np.median(leads)), 1) if leads else None,
                 "warn_thresh_c": round(float(engine._warn_thresh), 2),
                 "label": "SYNTHETIC FAULTS - not real-world detection accuracy",
@@ -206,15 +213,25 @@ def main() -> None:
     table_lines = [
         "> **SYNTHETIC FAULTS - not real-world detection accuracy.** All alerts below are evaluated on synthetically injected perturbations of TEST-partition windows using the exact twin rule (`CQR upper >= warn_thresh` at `h=6` or `h=36`).",
         "",
-        "| Cluster | Scenario | n_windows | n_crossed_warn | n_alerts | Alert Rate (All) | Detection Rate (Crossed) | Median Lead Time (min) |",
-        "|---|---|---|---|---|---|---|---|",
+        "| Cluster | Scenario | n_windows | n_crossed_warn | n_alerts | Alert Rate (All) | Detection Rate (Crossed) | Median Delay From Onset (min) | Median Lead Time (min) |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for _, r in df.iterrows():
         dc = f"{r['detection_rate_crossed']*100:.1f}%" if pd.notna(r["detection_rate_crossed"]) else "n/a"
+        dl = f"{r['median_delay_from_onset_min']:.1f}" if pd.notna(r["median_delay_from_onset_min"]) else "n/a"
         lt = f"{r['median_lead_time_min']:+.1f}" if pd.notna(r["median_lead_time_min"]) else "n/a"
         table_lines.append(
-            f"| {r['cluster']} | `{r['scenario']}` | {r['n_windows']} | {r['n_crossed_warn']} | {r['n_alerts']} | {r['alert_rate_all']*100:.1f}% | {dc} | {lt} |"
+            f"| {r['cluster']} | `{r['scenario']}` | {r['n_windows']} | {r['n_crossed_warn']} | {r['n_alerts']} | {r['alert_rate_all']*100:.1f}% | {dc} | {dl} | {lt} |"
         )
+
+    interp_note = (
+        "### Interpretation Note (Conformal Threshold-Margin Effect)\n"
+        "- Warm baseline hosts selected below `warn_thresh` can trigger alerts immediately at fault onset (`delay_from_onset = 0 min`) "
+        "because the 6 h CQR upper bound adds a ~4 °C safety margin above current temperature. When the injected fault pushes current temperature "
+        "just below `warn_thresh` and natural operational drift crosses `warn_thresh` hours later, the measured `lead_time_min` exceeds 360 min. "
+        "That reflects conformal threshold-margin headroom rather than multi-hour physical fault foresight.\n"
+        "- False alerts on `clean_control` occur when unperturbed baseline trajectories plus the 6 h CQR margin reach `warn_thresh`."
+    )
 
     notes_txt = "\n".join([
         "# Twin Synthetic Fault Alert Evaluation (2026-11-24)",
@@ -224,6 +241,8 @@ def main() -> None:
         "",
         "## Results (SYNTHETIC FAULTS - not real-world detection accuracy)",
         *table_lines,
+        "",
+        interp_note,
         "",
         "## What This Shows & Does NOT Show",
         "- **Shows:** How the CQR upper-bound alert rule behaves under synthetic temperature offsets/ramps when no unlabelled real fault ground truth exists.",
@@ -237,6 +256,8 @@ def main() -> None:
         "SYNTHETIC FAULTS - not real-world detection accuracy.",
         "",
         *table_lines,
+        "",
+        interp_note,
         "",
         "Source artifact: `experiments/twin_alerts_synthetic_20261124/metrics.csv` (`scripts/eval_twin_alerts.py`).",
     ]) + "\n"

@@ -143,6 +143,10 @@ canvas.mini-chart { width: 100%; height: 68px; border: 1px solid #2b3242; border
       <select id="sel-whatif-target"><option value="selected">Selected host</option><option value="new_server">New server</option></select>
       <select id="sel-whatif-cluster" disabled><option value="d1">Cluster 1 (D1)</option><option value="d2">Cluster 2 (D2)</option></select>
     </div>
+    <div class="row" style="margin-bottom:4px;">
+      <select id="wi-hour" title="Hour (UTC)"><option value="auto">Hour: Auto</option><option value="0">00:00</option><option value="4">04:00</option><option value="8">08:00</option><option value="12">12:00</option><option value="16">16:00</option><option value="18">18:00</option><option value="20">20:00</option></select>
+      <select id="wi-weekday" title="Weekday (UTC)"><option value="auto">Day: Auto</option><option value="0">Mon</option><option value="1">Tue</option><option value="2">Wed</option><option value="3">Thu</option><option value="4">Fri</option><option value="5">Sat</option><option value="6">Sun</option></select>
+    </div>
     <div class="wi-row"><span>CPU Load</span><input type="range" id="wi-load" min="0" max="100" value="40"><span id="wi-load-val">40%</span></div>
     <div class="wi-row"><span>Cores Used</span><input type="range" id="wi-cores" min="0" max="80" value="16"><span id="wi-cores-val">16</span></div>
     <div class="wi-row"><span>RAM Used</span><input type="range" id="wi-ram" min="0" max="192" value="32"><span id="wi-ram-val">32 GB</span></div>

@@ -30,6 +30,8 @@ export class PanelController {
     // What-If controls
     this.elWiTarget = document.getElementById("sel-whatif-target");
     this.elWiCluster = document.getElementById("sel-whatif-cluster");
+    this.elWiHour = document.getElementById("wi-hour");
+    this.elWiWeekday = document.getElementById("wi-weekday");
     this.elWiLoad = document.getElementById("wi-load");
     this.elWiCores = document.getElementById("wi-cores");
     this.elWiRam = document.getElementById("wi-ram");
@@ -50,6 +52,8 @@ export class PanelController {
       this._triggerWhatIf();
     });
     this.elWiCluster.addEventListener("change", () => this._triggerWhatIf());
+    this.elWiHour.addEventListener("change", () => this._triggerWhatIf());
+    this.elWiWeekday.addEventListener("change", () => this._triggerWhatIf());
 
     for (const el of [this.elWiLoad, this.elWiCores, this.elWiRam, this.elWiVms, this.elWiNet]) {
       el.addEventListener("input", () => {
@@ -74,6 +78,8 @@ export class PanelController {
     this.cb.onWhatIfChange({
       target: this.whatIfTarget,
       cluster: this.elWiCluster.value,
+      hour: this.elWiHour.value,
+      weekday: this.elWiWeekday.value,
       workload: {
         cpu_load: Number(this.elWiLoad.value),
         cores_used: Number(this.elWiCores.value),

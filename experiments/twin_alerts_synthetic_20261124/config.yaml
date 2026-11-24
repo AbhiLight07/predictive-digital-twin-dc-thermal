@@ -1,4 +1,4 @@
-n_windows_per_cluster: 12
+n_windows_per_cluster: 25
 onset_idx: 72
 scenarios:
   clean_control:

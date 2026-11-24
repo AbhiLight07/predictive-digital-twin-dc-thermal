@@ -134,10 +134,9 @@ def live_server_url():
 
 
 @needs_playwright
-def test_3db_and_3dc_end_to_end_webgl(live_server_url):
+def test_3db_and_3dc_end_to_end_webgl(live_server_url, tmp_path):
     from playwright.sync_api import sync_playwright
 
-    _SCREENS_DIR.mkdir(parents=True, exist_ok=True)
     console_errors = []
     page_errors = []
     blocked_external = []
@@ -191,9 +190,10 @@ def test_3db_and_3dc_end_to_end_webgl(live_server_url):
         arr = np.asarray(img, dtype=np.float32)
         assert arr.std() > 4.0, f"WebGL canvas looks blank (std={arr.std():.2f})"
 
-        # Save initial 3D-B overview screenshot (do not open/read it manually)
-        page.screenshot(path=str(_SCREENS_DIR / "01_overview.png"))
-        assert (_SCREENS_DIR / "01_overview.png").stat().st_size > 10_000
+        # Save smoke overview screenshot in tmp_path (preserve real-data docs/twin3d_screens/)
+        smoke_png = tmp_path / "01_overview.png"
+        page.screenshot(path=str(smoke_png))
+        assert smoke_png.stat().st_size > 10_000
 
         # 3. Host detail panel populated & sparkline drawn
         detail_txt = page.locator("#host-detail").inner_text()
@@ -209,7 +209,10 @@ def test_3db_and_3dc_end_to_end_webgl(live_server_url):
 
         # 5. 3D-C: Enable compare mode -> /api/compare called & stats box reflects API numbers
         page.check("#chk-compare")
-        page.wait_for_timeout(800)
+        page.wait_for_function(
+            "() => window.__twin3d.getStats().compareMode && window.__twin3d.getStats().compareStats !== null",
+            timeout=10000,
+        )
         stats_js = page.evaluate("() => window.__twin3d.getStats()")
         assert stats_js["compareMode"] is True
         assert stats_js["compareStats"] is not None
@@ -218,20 +221,26 @@ def test_3db_and_3dc_end_to_end_webgl(live_server_url):
         assert str(stats_js["compareStats"]["mae"]) in mae_dom
         assert str(stats_js["compareStats"]["coverage_pct"]) in inside_dom
         page.uncheck("#chk-compare")
-        page.wait_for_timeout(400)
+        page.wait_for_function("() => !window.__twin3d.getStats().compareMode", timeout=10000)
 
         # 6. 3D-C: Move What-If slider -> POST /api/whatif sent & ghost colour changes
-        page.locator("#wi-load").fill("10")
-        page.locator("#wi-load").dispatch_event("input")
-        page.wait_for_timeout(400)
+        is_whatif_post = lambda r: r.request.method == "POST" and "/api/whatif" in r.url
+        with page.expect_response(is_whatif_post, timeout=15000) as resp_10:
+            page.locator("#wi-load").fill("10")
+            page.locator("#wi-load").dispatch_event("input")
+        assert resp_10.value.status == 200
+        page.wait_for_timeout(150)
         ghost_before = page.evaluate("() => window.__twin3d.getStats()")
 
-        wi_before = len(api_requests)
-        page.locator("#wi-load").fill("95")
-        page.locator("#wi-load").dispatch_event("input")
-        page.wait_for_timeout(500)
-        wi_reqs = [(m, u) for m, u in api_requests[wi_before:] if m == "POST" and "/api/whatif" in u]
-        assert len(wi_reqs) >= 1, "Moving what-if slider did not trigger POST /api/whatif"
+        with page.expect_response(is_whatif_post, timeout=15000) as resp_95:
+            page.locator("#wi-load").fill("95")
+            page.locator("#wi-load").dispatch_event("input")
+        assert resp_95.value.status == 200
+        page.wait_for_function(
+            "(before) => window.__twin3d.getStats().ghostVisible && window.__twin3d.getStats().ghostColorHex !== before",
+            arg=ghost_before["ghostColorHex"],
+            timeout=10000,
+        )
         ghost_after = page.evaluate("() => window.__twin3d.getStats()")
         assert ghost_after["ghostVisible"] is True
         assert ghost_after["ghostColorHex"] != ghost_before["ghostColorHex"], (
@@ -240,9 +249,22 @@ def test_3db_and_3dc_end_to_end_webgl(live_server_url):
         wi_text = page.locator("#whatif-result").inner_text()
         assert "correlational - not causal" in wi_text.lower()
 
+        # 6b. What-If hour & weekday selector override sends explicit calendar params
+        with page.expect_response(is_whatif_post, timeout=15000) as resp_hour:
+            page.select_option("#wi-hour", "18")
+        assert resp_hour.value.status == 200
+
+        with page.expect_response(is_whatif_post, timeout=15000) as resp_wd:
+            page.select_option("#wi-weekday", "5")
+        assert resp_wd.value.status == 200
+        cal_payload = resp_wd.value.request.post_data_json or {}
+        assert cal_payload.get("hour") == 18 and cal_payload.get("weekday") == 5, (
+            f"Calendar override missing in POST /api/whatif payload: {cal_payload}"
+        )
+
         # 7. 3D-D: Anatomy view on D1 host (real fans + inlet) then D2 host (static grey "no fan sensor" / "no inlet sensor")
         page.click("#btn-inspect-server")
-        page.wait_for_timeout(700)
+        page.wait_for_function("() => window.__twin3d.getStats().anatomyMode === true", timeout=10000)
         d1_anat = page.evaluate("() => window.__twin3d.getStats()")
         assert d1_anat["anatomyMode"] is True
         assert d1_anat["anatomyHasFans"] is True
@@ -251,13 +273,23 @@ def test_3db_and_3dc_end_to_end_webgl(live_server_url):
         assert page.locator("#anatomy-chart-wrap").is_visible()
 
         page.click("#btn-back-hall")
-        page.wait_for_timeout(400)
+        page.wait_for_function("() => window.__twin3d.getStats().anatomyMode === false", timeout=10000)
         page.select_option("#sel-cluster", "d2")
-        page.wait_for_timeout(600)
+        page.wait_for_function(
+            """() => {
+                const s = window.__twin3d.getStats();
+                return s.selectedHostKey && s.selectedHostKey.startsWith('d2|')
+                    && document.getElementById('legend-extra').innerText.includes('D2: no fan sensors');
+            }""",
+            timeout=15000,
+        )
         assert "D2: no fan sensors" in page.locator("#legend-extra").inner_text()
 
         page.click("#btn-inspect-server")
-        page.wait_for_timeout(700)
+        page.wait_for_function(
+            "() => window.__twin3d.getStats().anatomyMode === true && !window.__twin3d.getStats().anatomyHasFans",
+            timeout=10000,
+        )
         d2_anat = page.evaluate("() => window.__twin3d.getStats()")
         assert d2_anat["anatomyMode"] is True
         assert d2_anat["anatomyHasFans"] is False

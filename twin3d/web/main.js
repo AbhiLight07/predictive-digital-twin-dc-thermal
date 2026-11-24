@@ -271,6 +271,12 @@ async function runWhatIf(wiReq) {
         weekday = (dt.getUTCDay() + 6) % 7;
       }
     }
+    if (wiReq.hour != null && wiReq.hour !== "auto") {
+      hour = parseInt(wiReq.hour, 10);
+    }
+    if (wiReq.weekday != null && wiReq.weekday !== "auto") {
+      weekday = parseInt(wiReq.weekday, 10);
+    }
     const res = await api.postWhatIf({
       cluster,
       host: hostId,

@@ -1,0 +1,32 @@
+n_windows_per_cluster: 12
+onset_idx: 72
+scenarios:
+  clean_control:
+    duration_steps: 0
+    kind: clean
+    mag: 0.0
+  drift_0.5C_per_h:
+    duration_steps: 72
+    kind: drift
+    mag: 0.5
+  ramp_10C_6h:
+    duration_steps: 36
+    kind: ramp
+    mag: 10.0
+  ramp_3C_2h:
+    duration_steps: 12
+    kind: ramp
+    mag: 3.0
+  ramp_6C_2h:
+    duration_steps: 12
+    kind: ramp
+    mag: 6.0
+  step_10C:
+    duration_steps: 1
+    kind: step
+    mag: 10.0
+  step_5C:
+    duration_steps: 1
+    kind: step
+    mag: 5.0
+seed: 42

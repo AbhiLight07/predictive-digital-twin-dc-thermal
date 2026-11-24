@@ -1,0 +1,15 @@
+cluster,scenario,n_windows,n_crossed_warn,n_alerts,alert_rate_all,detection_rate_crossed,median_lead_time_min,warn_thresh_c,label
+D1,clean_control,12,0,2,0.1667,,,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,ramp_3C_2h,12,0,5,0.4167,,,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,ramp_6C_2h,12,2,10,0.8333,1.0,545.0,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,ramp_10C_6h,12,4,12,1.0,1.0,135.0,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,step_5C,12,1,10,0.8333,1.0,650.0,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,step_10C,12,5,12,1.0,1.0,240.0,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,drift_0.5C_per_h,12,2,6,0.5,1.0,70.0,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,clean_control,12,0,0,0.0,,,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,ramp_3C_2h,12,1,4,0.3333,1.0,100.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,ramp_6C_2h,12,5,9,0.75,1.0,50.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,ramp_10C_6h,12,9,11,0.9167,1.0,70.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,step_5C,12,4,8,0.6667,1.0,125.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,step_10C,12,9,12,1.0,1.0,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,drift_0.5C_per_h,12,4,8,0.6667,1.0,230.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy

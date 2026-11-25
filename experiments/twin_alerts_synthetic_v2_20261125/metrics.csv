@@ -1,0 +1,43 @@
+cluster,scenario,detector,n_windows,n_crossed_warn,n_alerts,alert_rate_all,detection_rate_crossed,median_delay_from_onset_min,median_lead_time_min,clean_control_fpr,warn_thresh_c,label
+D1,clean_control,Twin (CQR upper),100,0,15,0.15,,310.0,,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,clean_control,Rolling z-score,100,0,15,0.15,,280.0,,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,clean_control,One-step change,100,0,15,0.15,,290.0,,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,ramp_3C_2h,Twin (CQR upper),100,2,32,0.32,1.0,155.0,165.0,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,ramp_3C_2h,Rolling z-score,100,2,7,0.07,0.0,520.0,,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,ramp_3C_2h,One-step change,100,2,17,0.17,0.0,280.0,,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,ramp_6C_2h,Twin (CQR upper),100,13,86,0.86,1.0,100.0,130.0,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,ramp_6C_2h,Rolling z-score,100,13,10,0.1,0.3077,215.0,0.0,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,ramp_6C_2h,One-step change,100,13,18,0.18,0.6154,220.0,0.0,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,ramp_10C_6h,Twin (CQR upper),100,39,100,1.0,1.0,190.0,200.0,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,ramp_10C_6h,Rolling z-score,100,39,3,0.03,0.0,20.0,,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,ramp_10C_6h,One-step change,100,39,17,0.17,0.3333,280.0,10.0,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,step_5C,Twin (CQR upper),100,10,68,0.68,1.0,15.0,285.0,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,step_5C,Rolling z-score,100,10,63,0.63,0.6,0.0,75.0,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,step_5C,One-step change,100,10,100,1.0,1.0,0.0,395.0,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,step_10C,Twin (CQR upper),100,45,100,1.0,1.0,0.0,30.0,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,step_10C,Rolling z-score,100,45,91,0.91,0.8222,0.0,0.0,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,step_10C,One-step change,100,45,100,1.0,1.0,0.0,30.0,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,drift_0.5C_per_h,Twin (CQR upper),100,5,39,0.39,1.0,390.0,100.0,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,drift_0.5C_per_h,Rolling z-score,100,5,5,0.05,0.2,70.0,50.0,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D1,drift_0.5C_per_h,One-step change,100,5,17,0.17,0.8,280.0,75.0,0.15,73.93,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,clean_control,Twin (CQR upper),100,0,0,0.0,,,,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,clean_control,Rolling z-score,100,0,0,0.0,,,,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,clean_control,One-step change,100,0,0,0.0,,,,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,ramp_3C_2h,Twin (CQR upper),100,7,36,0.36,1.0,120.0,130.0,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,ramp_3C_2h,Rolling z-score,100,7,0,0.0,0.0,,,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,ramp_3C_2h,One-step change,100,7,0,0.0,0.0,,,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,ramp_6C_2h,Twin (CQR upper),100,48,69,0.69,1.0,80.0,50.0,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,ramp_6C_2h,Rolling z-score,100,48,0,0.0,0.0,,,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,ramp_6C_2h,One-step change,100,48,0,0.0,0.0,,,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,ramp_10C_6h,Twin (CQR upper),100,79,94,0.94,1.0,180.0,90.0,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,ramp_10C_6h,Rolling z-score,100,79,0,0.0,0.0,,,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,ramp_10C_6h,One-step change,100,79,0,0.0,0.0,,,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,step_5C,Twin (CQR upper),100,36,66,0.66,1.0,0.0,30.0,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,step_5C,Rolling z-score,100,36,34,0.34,0.3611,0.0,40.0,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,step_5C,One-step change,100,36,0,0.0,0.0,,,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,step_10C,Twin (CQR upper),100,82,99,0.99,1.0,0.0,0.0,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,step_10C,Rolling z-score,100,82,79,0.79,0.7805,0.0,0.0,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,step_10C,One-step change,100,82,100,1.0,1.0,0.0,0.0,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,drift_0.5C_per_h,Twin (CQR upper),100,29,53,0.53,1.0,460.0,170.0,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,drift_0.5C_per_h,Rolling z-score,100,29,0,0.0,0.0,,,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy
+D2,drift_0.5C_per_h,One-step change,100,29,1,0.01,0.0,620.0,,0.0,75.72,SYNTHETIC FAULTS - not real-world detection accuracy

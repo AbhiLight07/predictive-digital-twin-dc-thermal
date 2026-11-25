@@ -140,18 +140,20 @@ Unseen-server 1-hour error (`~0.92°C` Split B) exceeds seen-server chronologica
 
 ### 4.3 RQ3: Fleet-Wide Planning Adaptation (`N=81`)
 
-Evaluating planning adaptation across all 5 GroupKFold folds ($N=81$ Dataset 1 servers, `docs/results_v3.md` §4):
+Evaluating planning adaptation across all 5 GroupKFold folds ($N=81$ Dataset 1 servers, `docs/results_v3.md` §4; `docs/results_v4_addendum.md` §1):
 
 | Strategy | Local Budget | Mean MAE (°C) | Std (°C) | 95% CI (°C) |
 |---|---|---:|---:|---:|
 | **Fleet Mean** | 0 h | 8.87 | 2.99 | [8.23, 9.50] |
-| **Zero-Shot Pretrained** | 0 h | 5.03 | 1.59 | [4.71, 5.39] |
+| **Ridge (`CPU_Load` only)** | 0 h | 5.70 | 2.15 | [5.24, 6.17] |
+| **Load-Bin Mean (10% bins)** | 0 h | 5.67 | 2.14 | [5.21, 6.13] |
+| **Zero-Shot Pretrained (`S2`)** | 0 h | 5.03 | 1.59 | [4.71, 5.39] |
 | **Continued Boosting** | 24 h | 4.93 | 1.52 | [4.62, 5.28] |
 | **Continued Boosting** | 168 h (7 d) | 4.87 | 1.43 | [4.58, 5.19] |
 | **Residual Offset** | 1 h | 5.52 | 2.50 | [5.01, 6.08] |
 | **Residual Offset** | 168 h (7 d) | 5.02 | 2.21 | [4.55, 5.52] |
 
-Zero-shot planning achieves a `43.2%` error reduction over the unconditioned fleet mean (`5.03°C` vs `8.87°C`). Small local continued-boosting improvements accumulate gradually (`5.03°C → 4.87°C` at `168 h`), whereas prior lab testbed studies (Brännvall et al., Energies 2023) established earlier that fine-tuning beats scratch training.
+Zero-shot `S2` LightGBM reduces error by `43.21%` (95% CI `[38.57%, 47.30%]`) relative to the unconditioned fleet mean (`5.03°C` vs `8.87°C`). However, simple load-aware baselines already capture most of that gain (`Ridge`: `5.70°C`; `load_bin_mean`: `5.67°C`), leaving `S2` with a more modest overall reduction of `+11.67%` (95% CI `[+5.37%, +17.56%]`; mean per-server `+5.80%`, CI `[-0.71%, +11.67%]`) over Ridge on `CPU_Load` and `+11.14%` (CI `[+4.24%, +17.02%]`; mean per-server `+5.01%`, CI `[-1.45%, +10.77%]`) over the 10%-binned load mean. Small local continued-boosting improvements accumulate gradually (`5.03°C → 4.87°C` at `168 h`), whereas prior lab testbed studies (Brännvall et al., Energies 2023) established earlier that fine-tuning beats scratch training.
 
 ### 4.4 RQ4: Conformal Uncertainty & Shift Coverage (`docs/results_v2.md` §8)
 
@@ -167,8 +169,8 @@ CQR adapts interval widths positively with true error (`r=0.470`) and covers loa
 
 ### 4.5 RQ5: Cross-Cluster Hardware Adaptation (Cluster 1 → Cluster 2)
 
-Transferring a Cluster 1 planning model to Cluster 2 (`docs/results_v3.md` §5):
-- **Zero-Shot Transfer:** `6.85°C` MAE (wide 95% bootstrap CI `[2.92°C, 13.47°C]`).
+Transferring a Cluster 1 planning model to `N=12` Split C held-out target servers in Cluster 2 (`docs/results_v3.md` §5; `docs/results_v4_addendum.md` §2):
+- **Zero-Shot Transfer:** `6.85°C` MAE (wide 95% bootstrap CI `[2.92°C, 13.47°C]`). Under the earlier v2 chronological Split A protocol across all `59` qualifying C2 servers (pooled row-weighted MAE, early-stopped C1 model), zero-shot MAE was lower (`4.88°C` with v2's `lags=[1,2,6]` set; `4.97°C` under v3 features), whereas evaluating v2's model on the same `12` Split C servers after the 174-hour buffer yields `6.67°C`. The difference reflects unseen-server selection and unweighted per-server aggregation rather than a modeling regression.
 - **Residual Offset Adaptation:** Drops bias rapidly to `3.79°C` (`1 h`, CI `[2.40, 5.27]`), `3.16°C` (`6 h`, CI `[2.13, 4.30]`), `2.92°C` (`72 h`, CI `[1.64, 4.81]`), and `3.03°C` (`168 h`).
 - **Continued Boosting:** Remains higher (`6.07°C` at `24 h`; `6.05°C` at `168 h`) because tree split constraints resist global baseline shifts across heterogeneous clusters.
 
@@ -176,27 +178,32 @@ Transferring a Cluster 1 planning model to Cluster 2 (`docs/results_v3.md` §5):
 
 ## 5. Predictive Digital Twin & 3D Prototype (`twin3d`)
 
-Beyond offline experiment scripts, the trained models are deployed in an **offline, data-driven predictive digital twin prototype** (`v2.1-twin3d` → `v2.2-twin-fixes`) backed by `TwinEngine` (`src/ttwin/twin/engine.py`), saved LightGBM point + CQR quantile models (`models/twin/`), and precomputed 30-minute stride test caches (`550,848` D1 rows; `205,671` D2 rows).
+Beyond offline experiment scripts, the trained models are deployed in an **offline, data-driven predictive digital twin prototype** (`v2.1-twin3d` → `v2.4-evidence`) backed by `TwinEngine` (`src/ttwin/twin/engine.py`), saved LightGBM point + CQR quantile models (`models/twin/`), and precomputed 30-minute stride test caches (`550,848` D1 rows; `205,671` D2 rows).
 
-### 5.1 Deployed Twin Model Performance (`models/twin/{d1,d2}_metadata.json`)
+### 5.1 Deployed Twin Model Performance & Planning Calibration (`models/twin/`, `docs/planning_calibration_eval.md`)
 
-| Cluster | Regime | Horizon | Model MAE (°C) | Persistence MAE (°C) | CQR Coverage | Mean Width (°C) |
+| Cluster | Regime | Horizon | Model MAE (°C) | Persistence MAE (°C) | Static CQR Cov | Mean Width (°C) |
 |---|---|---|---:|---:|---:|---:|
 | **D1** (76 hosts) | Monitoring (S1) | 10 min (`h=1`) | 0.4023 | 0.4025 | 89.96% | 1.6578 |
 | **D1** (76 hosts) | Monitoring (S1) | 1 h (`h=6`) | 0.8371 | 0.8394 | 90.00% | 3.3510 |
 | **D1** (76 hosts) | Monitoring (S1) | 6 h (`h=36`) | 1.6069 | 1.5991 | 88.14% | 6.7149 |
-| **D1** (76 hosts) | Planning (Workload) | Contemporaneous | 5.4844 | — | 81.09% | 15.8726 |
+| **D1** (76 hosts) | Planning (Workload) | Contemporaneous | 5.4844 | — | 81.09% (89.36% roll-7d) | 15.8726 (18.402 roll-7d) |
 | **D2** (60 hosts) | Monitoring (S1) | 10 min (`h=1`) | 0.4845 | 0.5014 | 89.79% | 2.0820 |
 | **D2** (60 hosts) | Monitoring (S1) | 1 h (`h=6`) | 0.7807 | 0.8018 | 89.31% | 3.5339 |
 | **D2** (60 hosts) | Monitoring (S1) | 6 h (`h=36`) | 1.2696 | 1.2817 | 86.15% | 7.2528 |
-| **D2** (60 hosts) | Planning (Workload) | Contemporaneous | 3.8926 | — | 85.33% | 17.8727 |
+| **D2** (60 hosts) | Planning (Workload) | Contemporaneous | 3.8926 | — | 85.33% (89.09% roll-7d) | 17.8727 (19.079 roll-7d) |
 
-*(Honest note: D1 6-hour monitoring MAE `1.6069°C` trails persistence slightly at `1.5991°C`, and planning uncertainty intervals remain wide at `15.9–17.9°C`.)*
+Because static planning CQR under-covers the `90%` target (`81.09%` D1, `85.33%` D2) under temporal drift and regime-wise `q_hat` (`idle`/`active`/`heavy`) fails to restore coverage (`81.10%` D1, `81.52%` D2), causal **7-day rolling recalibration (`rolling_7d`)** raises test coverage to `89.36%` on D1 (`18.402°C`, `1.16x` width) and `89.09%` on D2 (`19.079°C`, `1.07x` width), and is integrated as an opt-in `TwinEngine` calibration mode (`models/twin/planning_calibration.json`). *(Honest note: D1 6-hour monitoring MAE `1.6069°C` trails persistence slightly at `1.5991°C`.)*
 
-### 5.2 Architecture & 3D Verification (`docs/twin3d_validation.md`)
-1. **Local FastAPI Service (`src/ttwin/twin3d/server.py`):** Exposes `/api/meta`, `/api/snapshot` (p50 `35.74 ms`, p95 `48.03 ms` on D1), `/api/compare` (strict causal lookup matching target time `t` against forecast issued at `t - h`), `/api/series`, `/api/alerts`, `POST /api/whatif`, and `/api/health`. Serving feature construction enforces 10-minute grid alignment (`fill_missing_timestamps`) to match training.
-2. **Offline Three.js Visualisation (`twin3d/web/`, vendored `three@0.164.1`):** Schematic 42U rack rows (`C1-R1..R4`, `C2-R1..R3`) rendered with instanced meshes (`12` WebGL draw calls, `0` external CDN dependencies, `0` console errors offline), CQR uncertainty halos, dual-scissor compare mode (across 3 TEST-period days at `h=6`: MAE `0.50–0.64°C` / `90.79–97.37%` inside on D1; `0.51–0.89°C` / `87.27–90.91%` on D2), live planning what-if ghost predictions (`"predictive, correlational - not causal"`), and a Server Anatomy view (`docs/twin3d_screens/`). Hosts without fan/inlet sensors (Cluster 2) display static grey parts explicitly labelled `"no fan sensor"` and `"no inlet sensor"`. (A legacy Streamlit explorer in `app/streamlit_app.py` remains preserved unchanged with illustrative replay markers.)
-3. **Synthetic-Fault Alert Evaluation (`docs/twin_alert_evaluation.md`):** Across `25` seeded warm-normal TEST windows per cluster under injected steps, ramps, and slow drift (**SYNTHETIC FAULTS — not real-world detection accuracy**), the twin alert rule (`CQR upper >= p90 warning threshold` at `h=6` or `h=36`) detected `100.0%` of threshold-crossing windows, with `16.0%` (`4/25`, D1) and `0.0%` (`0/25`, D2) false alerts on unperturbed `clean_control` baselines.
+### 5.2 Architecture, Frame Rate & Alert Evaluations (`docs/twin3d_validation.md`, `docs/twin3d_fps_gpu.md`)
+1. **Local FastAPI Service (`src/ttwin/twin3d/server.py`):** Exposes `/api/meta`, `/api/snapshot` (p50 `35.74 ms`, p95 `48.03 ms` on D1), `/api/compare` (strict causal lookup matching target time `t` against forecast issued at `t - h`, reporting `"missing"` rather than `"ok"` when observations are absent), `/api/series`, `/api/alerts`, `POST /api/whatif`, and `/api/health`. Serving feature construction enforces 10-minute grid alignment (`fill_missing_timestamps`) to match training.
+2. **Offline Three.js Visualisation (`twin3d/web/`, vendored `three@0.164.1`):** Schematic 42U rack rows (`C1-R1..R4`, `C2-R1..R3`) rendered with instanced meshes (`13` WebGL draw calls in compare mode, `0` external CDN dependencies, `0` console errors offline), CQR uncertainty halos, dual-scissor compare mode (across 3 TEST-period days at `h=6`: MAE `0.50–0.64°C` / `90.79–97.37%` inside on D1; `0.51–0.89°C` / `87.27–90.91%` on D2), live planning what-if ghost predictions (`"predictive, correlational - not causal"`), and a Server Anatomy view (`docs/twin3d_screens/`). In 30-second compare-mode benchmarks (`docs/twin3d_fps_gpu.md`), headed GPU Chromium (`ANGLE Intel UHD Graphics D3D11`) sustains **60.0 median FPS** (`60.0–61.0` FPS) vs **6.0 median FPS** under headless software rendering (`SwiftShader`). Hosts without fan/inlet sensors (Cluster 2) display static grey parts explicitly labelled `"no fan sensor"` and `"no inlet sensor"`. (The earlier illustrative `app/streamlit_app.py` mock has been retired to a deprecation stub.)
+3. **Pre-Registered Hotspot Early-Warning Evaluation (`docs/twin_hotspot_evaluation.md`):** On real TEST crossings from below `W` (`73.93°C` D1, `75.72°C` D2) to `>= W` (all 4 cluster-horizon pairs conclusive with `n_events = 758`–`1,790`), matching validation alert rates via `val_sel + val_cal` thresholds:
+   - **D1 (`+1h`, `758` events):** Twin achieves `63.5%` recall / `17.3%` precision (`1.54%` test alert rate) vs Persistence `47.1%` / `9.2%` (`2.14%`) and Trend `34.8%` / `7.0%` (`2.08%`).
+   - **D1 (`+6h`, `1,328` events):** Twin achieves `50.4%` recall / `11.6%` precision (`3.20%`) vs Persistence `45.4%` / `9.8%` (`3.40%`) and Trend `17.5%` / `4.1%` (`3.11%`).
+   - **D2 (`+1h`, `1,098` events):** Twin achieves `89.3%` recall / `19.2%` precision (`8.37%`) vs Persistence `82.5%` / `17.6%` (`8.45%`) and Trend `63.5%` / `12.9%` (`8.82%`).
+   - **D2 (`+6h`, `1,790` events):** Twin achieves `85.1%` recall / `18.6%` precision (`13.53%`) vs Persistence `81.6%` / `18.0%` (`13.39%`) and Trend `36.4%` / `7.7%` (`14.03%`).
+4. **Synthetic Early-Warning Threshold-Crossing Evaluation (`docs/twin_alert_evaluation_v2.md`):** Framed strictly as **early-warning threshold crossing, not a fault detector** (**SYNTHETIC FAULTS — not real-world detection accuracy**), across `100` clean TEST windows per cluster with baselines calibrated to the Twin's exact `clean_control` false-alarm rate (`15.0%` D1; `0.0%` D2), the Twin detects `100.0%` of threshold-crossing windows across all 6 perturbation profiles, whereas matched-FPR `Rolling z-score` and `One-step change` baselines achieve `0.0%`–`61.5%` on gradual ramps (`ramp_6C_2h`, `ramp_10C_6h`) and `0.0%`–`80.0%` on slow drift (`drift_0.5C_per_h`).
 
 ---
 
@@ -204,8 +211,8 @@ Beyond offline experiment scripts, the trained models are deployed in an **offli
 
 1. **Telemetry & Infrastructure Blind Spots:** The trace lacks rack coordinates, CRAC/CRAH cooling telemetry, indoor/outdoor weather sensors, and per-VM placement details. The 3D hall layout is schematic, and airflow streaks/fan caps (`12 rad/s`) are visual encodings rather than CFD physics.
 2. **Open-Loop Digital Shadow:** The system performs offline historical replay without live ingestion or physical actuation (`no cooling control`). Planning what-if responses are strictly correlational.
-3. **Short-Horizon Persistence & Wide Planning Error:** Monitoring skill gains over persistence are small or cross zero at the server level; planning MAE remains `3.89–5.48°C` without thermal history.
-4. **Conformal Shift Sensitivity:** Conformal validity assumes exchangeability; operational drift erodes marginal and per-server coverage, motivating regime-conditional or adaptive conformal calibration.
+3. **Short-Horizon Persistence & Modest Load-Aware Planning Gains:** Monitoring skill gains over persistence are small or cross zero at the server level; planning MAE remains `3.89–5.48°C` without thermal history, and zero-shot `S2` improves over simple `CPU_Load` Ridge/bin-mean baselines by `+11.1%` to `+11.7%` overall (per-server CIs cross zero).
+4. **Conformal Shift Sensitivity & Early-Warning Scope:** Static conformal validity erodes under operational drift (`81.09%` D1, `85.33%` D2 planning coverage), requiring rolling 7-day causal recalibration (`89.36%` D1, `89.09%` D2) while still lacking unrecorded ambient/HVAC covariates. Cross-cluster Split C transfer covers `N=12` held-out Cluster 2 hosts with wide variance (`[2.92°C, 13.47°C]`), and synthetic perturbation benchmarks evaluate early-warning threshold crossing rather than real-world physical fault diagnosis.
 
 ---
 

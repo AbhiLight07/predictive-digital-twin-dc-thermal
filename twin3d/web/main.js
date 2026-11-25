@@ -27,6 +27,11 @@ renderer.setSize(container.clientWidth, container.clientHeight);
 renderer.setClearColor(0x0a0c10, 1.0);
 container.appendChild(renderer.domElement);
 
+const gl = renderer.getContext();
+const dbgInfo = gl.getExtension("WEBGL_debug_renderer_info");
+const webglRenderer = dbgInfo ? gl.getParameter(dbgInfo.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+const webglVendor = dbgInfo ? gl.getParameter(dbgInfo.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR);
+
 const labelRenderer = new CSS2DRenderer();
 labelRenderer.setSize(container.clientWidth, container.clientHeight);
 labelRenderer.domElement.style.position = "absolute";
@@ -430,6 +435,7 @@ window.__twin3d = {
   getStats: () => ({
     fps: currentFps,
     drawCalls: renderer.info.render.calls,
+    renderer: webglRenderer,
     hostCount: fleet.hosts.length,
     selectedHostKey: state.selectedHostKey,
     compareMode: state.compareMode,
@@ -455,6 +461,20 @@ let fpsFrames = 0;
 let fpsLastCheck = performance.now();
 let currentFps = 60;
 let lowFpsStreak = 0;
+
+function syncTwinStats() {
+  window.__twinStats = {
+    fps: currentFps,
+    drawCalls: renderer.info.render.calls,
+    renderer: webglRenderer,
+    vendor: webglVendor,
+    compareMode: state.compareMode,
+    singleViewport: state.singleViewport,
+    bloomEnabled: state.bloomEnabled,
+    halosEnabled: fleet.halosEnabled,
+  };
+}
+syncTwinStats();
 
 function animate(now) {
   requestAnimationFrame(animate);
@@ -543,6 +563,7 @@ function animate(now) {
       lowFpsStreak = 0;
     }
     hud.updatePerf(currentFps, renderer.info.render.calls, state.bloomEnabled, fleet.halosEnabled);
+    syncTwinStats();
   }
 }
 

@@ -1,0 +1,7 @@
+cluster,method,val_cal_coverage,val_cal_width,test_coverage,test_width,width_vs_baseline,cov_idle,cov_active,cov_heavy,meets_rule
+D1,static_cqr,0.9,16.113,0.8109,15.873,1.0,0.8061,0.872,1.0,False
+D1,rolling_7d,0.8808,15.625,0.8936,18.402,1.1594,0.891,0.9273,1.0,True
+D1,regime_qhat,0.9,16.117,0.811,15.899,1.0017,0.8085,0.8388,1.0,False
+D2,static_cqr,0.9,19.632,0.8533,17.873,1.0,0.7638,0.8592,0.948,False
+D2,rolling_7d,0.9191,20.562,0.8909,19.079,1.0675,0.8061,0.8942,0.9862,True
+D2,regime_qhat,0.9001,20.468,0.8152,18.363,1.0274,0.8936,0.8434,0.6488,False

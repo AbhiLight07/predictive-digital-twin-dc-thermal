@@ -69,3 +69,11 @@ In the v3 cross-cluster adaptation experiment (`docs/results_v3.md` §5), **`N =
 2. **C1 Training Configuration & Aggregation:** v2 trained on 70% of C1 with early stopping (`best_iteration` trees), whereas v3 trained on 100% of C1 for 80 rounds and averaged unweighted per-server MAEs (giving high-variance held-out C2 hosts equal weight).
 
 Source artifacts: `experiments/v4_planning_addendum/` (`planning_baselines_summary.csv`, `planning_paired_gains.csv`, `cross_cluster_server_counts.csv`, `cross_cluster_reconciliation.csv`).
+
+---
+
+## 3. Planning-Interval Calibration (`rolling_7d` vs `regime_qhat`)
+
+See [`docs/planning_calibration_eval.md`](planning_calibration_eval.md) (`scripts/eval_planning_calibration.py`):
+- Static CQR (`81.09%` D1, `85.33%` D2) and regime-wise `q_hat` (`81.10%` D1, `81.52%` D2) both under-cover the `90%` target due to temporal drift.
+- Causal **7-day rolling recalibration (`rolling_7d`)** meets the adoption criterion (`>= 88%` coverage with `<= 1.30x` width) on both clusters: **D1 `89.36%`** (`18.40°C`, `1.16x`) and **D2 `89.09%`** (`19.08°C`, `1.07x`). It is integrated as an opt-in `planning_cal_mode="rolling_7d"` option in `TwinEngine` backed by `models/twin/planning_calibration.json` (saved `.txt` models untouched) and displayed in the model provenance panel.

@@ -57,9 +57,11 @@ class TwinEngine:
         models_dir: str | Path | None = None,
         config_path: str | Path | None = None,
         data_dir: str | Path | None = None,
+        planning_cal_mode: str = "static",
     ):
         self.cluster = cluster  # "d1" or "d2"
         self._dataset = "dataset1" if cluster == "d1" else "dataset2"
+        self._planning_cal_mode = planning_cal_mode
 
         models_dir = Path(models_dir) if models_dir else _ROOT / "models" / "twin"
         config_path = Path(config_path) if config_path else _ROOT / "configs" / "twin.yaml"
@@ -78,6 +80,14 @@ class TwinEngine:
         meta_path = models_dir / f"{cluster}_metadata.json"
         with open(meta_path) as f:
             self._meta = json.load(f)
+
+        # Optional sidecar for adaptive planning calibration (leaves .txt models untouched)
+        self._planning_calibration: Optional[dict] = None
+        cal_path = models_dir / "planning_calibration.json"
+        if cal_path.exists():
+            with open(cal_path, encoding="utf-8") as f:
+                cal_all = json.load(f)
+            self._planning_calibration = cal_all.get("clusters", {}).get(cluster)
 
         self._host_list: List[str] = self._meta["host_list"]
         self._models_info: Dict[str, dict] = {}
@@ -329,14 +339,34 @@ class TwinEngine:
 
         return forecasts
 
-    def whatif(self, workload: dict, capacity: Optional[dict] = None) -> dict:
+    def whatif(
+        self,
+        workload: dict,
+        capacity: Optional[dict] = None,
+        t: Optional[pd.Timestamp] = None,
+        cal_mode: Optional[str] = None,
+    ) -> dict:
         """Planning-model prediction: workload → temperature estimate + CQR interval."""
         info = self._models_info.get("planning_0")
         if info is None:
             return {"available": False, "error": "planning model not loaded"}
 
         feat_names = info["feature_names"]
-        q_hat = info.get("q_hat", 0.0)
+        q_hat = float(info.get("q_hat", 0.0))
+        mode = cal_mode or self._planning_cal_mode
+        if mode == "rolling_7d" and self._planning_calibration:
+            daily = self._planning_calibration.get("rolling_7d_daily_q_hats", {})
+            if t is not None and daily:
+                day_str = pd.Timestamp(t).strftime("%Y-%m-%d")
+                if day_str in daily:
+                    q_hat = float(daily[day_str])
+                else:
+                    prior_days = [d for d in sorted(daily) if d <= day_str]
+                    q_hat = float(daily[prior_days[-1]]) if prior_days else float(
+                        self._planning_calibration.get("rolling_7d_q_hat_latest", q_hat)
+                    )
+            else:
+                q_hat = float(self._planning_calibration.get("rolling_7d_q_hat_latest", q_hat))
 
         # Build feature vector from workload dict
         row = {}

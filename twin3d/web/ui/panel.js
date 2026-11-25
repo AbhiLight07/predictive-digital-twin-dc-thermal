@@ -122,7 +122,8 @@ export class PanelController {
         const pStr = m.persistence_mae != null ? ` / persist ${m.persistence_mae}` : "";
         const maeStr = m.test_mae != null ? `${m.test_mae}°C` : "n/a";
         const covStr = m.empirical_coverage != null ? `${m.empirical_coverage}%` : "n/a";
-        return `<div class="row"><span class="label">${tag} MAE / cov</span><span class="val">${maeStr}${pStr} · ${covStr}</span></div>`;
+        const rollStr = m.kind === "planning" && m.rolling_7d_coverage != null ? ` (roll-7d ${m.rolling_7d_coverage}%)` : "";
+        return `<div class="row"><span class="label">${tag} MAE / cov</span><span class="val">${maeStr}${pStr} · ${covStr}${rollStr}</span></div>`;
       })
       .join("");
     const b = cm.partition_boundaries || {};

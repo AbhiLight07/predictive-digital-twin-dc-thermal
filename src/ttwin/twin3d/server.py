@@ -262,6 +262,13 @@ class _ClusterIndex:
         self.time_min, self.time_max = self._compute_time_range(data, cache_df)
         self.meta_dict = getattr(engine, "_meta", {}) or {}
         self.models_info = getattr(engine, "_models_info", {}) or {}
+        self.planning_calibration = getattr(engine, "_planning_calibration", None)
+        if self.planning_calibration is None:
+            cal_path = _REPO / "models" / "twin" / "planning_calibration.json"
+            if cal_path.exists():
+                import json
+                with open(cal_path, encoding="utf-8") as f:
+                    self.planning_calibration = json.load(f).get("clusters", {}).get(cluster)
         cfg_warn, cfg_crit = _load_twin_thresholds(cluster)
         self.warn_thresh = float(getattr(engine, "_warn_thresh", cfg_warn))
         self.crit_thresh = float(getattr(engine, "_crit_thresh", cfg_crit))
@@ -801,7 +808,7 @@ class Twin3DService:
             }
             models_summary = []
             for mod in cidx.meta_dict.get("models", []):
-                models_summary.append({
+                entry = {
                     "kind": mod.get("kind"),
                     "horizon": mod.get("horizon"),
                     "test_mae": _r2(mod.get("test_mae")),
@@ -812,7 +819,13 @@ class Twin3DService:
                     ),
                     "mean_interval_width": _r2(mod.get("mean_interval_width")),
                     "n_test_rows": mod.get("n_test_rows"),
-                })
+                }
+                if mod.get("kind") == "planning" and cidx.planning_calibration:
+                    rc = cidx.planning_calibration.get("rolling_7d_coverage")
+                    rw = cidx.planning_calibration.get("rolling_7d_width")
+                    entry["rolling_7d_coverage"] = _r2(rc * 100.0) if rc is not None else None
+                    entry["rolling_7d_width"] = _r2(rw) if rw is not None else None
+                models_summary.append(entry)
 
             cfg = getattr(eng, "_config", {}) or {}
             replay_cfg = cfg.get("replay", {"stride_minutes": 30, "sampling_interval_minutes": 10})

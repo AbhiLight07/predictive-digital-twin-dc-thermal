@@ -16,17 +16,34 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 TWIN_DIR = ROOT / "models" / "twin"
 CACHE_DIR = ROOT / "data" / "twin_cache"
+_D1_INTERIM = ROOT / "data" / "interim" / "dataset1"
 
-_has_models = (TWIN_DIR / "d1_metadata.json").exists()
+_has_d1_data = _D1_INTERIM.exists() and any(
+    f for f in _D1_INTERIM.glob("*.parquet") if not f.name.startswith("_")
+)
+_required_d1_models = [
+    TWIN_DIR / f"d1_{kind}_{h}_{role}.txt"
+    for kind, hs in [("monitoring", (1, 6, 36)), ("planning", (0,))]
+    for h in hs
+    for role in ("point", "lower", "upper")
+]
+_has_d1_models = (TWIN_DIR / "d1_metadata.json").exists() and all(
+    p.exists() for p in _required_d1_models
+)
 
-needs_models = pytest.mark.skipif(not _has_models, reason="twin models not present")
+needs_models = pytest.mark.skipif(
+    not (_has_d1_models and _has_d1_data),
+    reason="d1 twin models or data/interim/dataset1 parquet files not present",
+)
 
 
 @pytest.fixture(scope="module")
 def d1_engine():
-    """Load a real D1 engine (skipped if data missing)."""
-    if not (TWIN_DIR / "d1_metadata.json").exists():
-        pytest.skip("models not present")
+    """Load a real D1 engine (skipped if models or interim data missing)."""
+    if not _has_d1_models:
+        pytest.skip("d1 twin models not present")
+    if not _has_d1_data:
+        pytest.skip("data/interim/dataset1 parquet files not present")
     from ttwin.twin.engine import TwinEngine
     return TwinEngine("d1")
 
@@ -172,6 +189,7 @@ def test_interval_ordering_and_risk(d1_engine):
 # ── T3.6 Gap parity between training and serving ─────────────────────
 
 
+@needs_models
 def test_gap_parity_matches_training(d1_engine):
     """Deliberate 40-min gap must produce exact training-time NaNs and UNKNOWN risk."""
     import sys

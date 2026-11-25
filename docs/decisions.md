@@ -21,3 +21,17 @@ All project decisions not covered in the PROJECT_BRIEF.md are logged here with d
 | 2026-11-08 | Time-consistent cold-start pretraining | Pretrained models must strictly be trained on data prior to target server adaptation windows to prevent future leakage | Agent (review) |
 | 2026-11-12 | Evaluation protocol frozen | Frozen protocol with 70/10/20 chronological Split A (36-step embargo), 5-fold GroupKFold Split B, and strict Split C; commit 6909f188 | Agent |
 | 2026-11-24 | Regular 10-min grid alignment in twin serving | `TwinEngine._build_monitoring_features` now calls `fill_missing_timestamps(..., freq="10min")` before lag/rolling computation, and `forecast()` returns `unknown` when stale (>30 min) or when post-gap features are `NaN`, matching `scripts/train_twin_models.py` | Agent |
+| 2026-11-25 | Pre-registered Hotspot-Event Evaluation Protocol | Locked before running evaluation (see details below) | Agent |
+
+## Pre-Registered Hotspot-Event Protocol (2026-11-25)
+
+- **Scope:** Saved models (`models/twin/`) and precomputed test forecast caches (`data/twin_cache/{d1,d2}_forecasts.parquet`) only; no retraining. Clusters: `D1` (`W = 73.93°C`) and `D2` (`W = 75.72°C`) from `configs/twin.yaml`. Horizons evaluated separately: `t + 1 h` (`h = 6`, `h_hours = 1.0`) and `t + 6 h` (`h = 36`, `h_hours = 6.0`).
+- **Event Definition:** At evaluation timestamp `t` (30-min stride, aligned with forecast cache), a host currently strictly below the cluster warning threshold (`T_i(t) < W`) experiences a hotspot crossing event if its effective CPU temperature reaches or exceeds the warning threshold at `t + h` (`T_i(t + h) >= W`). Rows with missing `T_i(t)`, missing `T_i(t + h)`, or missing 1 h causal lookback `T_i(t - 6 steps)` are excluded uniformly across all detectors.
+- **Detectors:**
+  - **(A) Twin (CQR upper bound):** Alert iff `CQR_upper_h(t) >= W`.
+  - **(B) Persistence rule:** Alert iff `T_i(t) >= W - m_persist` (equivalently `W - T_i(t) <= m_persist`).
+  - **(C) Trend rule:** Alert iff `T_i(t) + slope_1h(t) * h_hours >= W - m_trend`, where `slope_1h(t) = (T_i(t) - T_i(t - 6 steps)) / 1.0 h` on the uniform 10-min grid.
+- **Matched-Alert-Rate Calibration (Validation Partition Only):** On the validation partition (`val_sel_start <= t <= val_cal_end`, 30-min stride, strictly before `test_start`), compute the Twin's alert rate `r_val` among eligible (`T_i(t) < W`) rows. Choose `m_persist` and `m_trend` as the `(1 - r_val)` quantile of `(W - T_i(t))` and `(W - (T_i(t) + slope_1h(t) * h_hours))` respectively on validation so that (B) and (C) raise the same validation alert rate as (A). Evaluate **once** on `TEST`.
+- **Metrics & Inference:** Event count (`n_events`), alert count (`n_alerts`), alert rate, recall, precision, and mean lead time (for each positive event at target `t + h`, lead time in minutes from the earliest alert on that host within `[t, t + h)` before `t + h`, which equals `h * 10` min for a single-horizon alert at `t` or earlier if alerted on an earlier stride inside `(t_cross - h*10m, t_cross)`), with 95% host-level bootstrap confidence intervals (`B = 2000` resamples over physical hosts, `seed = 42`), reported per cluster and horizon.
+- **Conclusiveness Criterion:** If `n_events < 30` for any `(cluster, horizon)`, report the result as **`inconclusive`**.
+

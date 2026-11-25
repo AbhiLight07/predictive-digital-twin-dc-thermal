@@ -312,6 +312,9 @@ Executed via `scripts/test_fault_injection.py` to evaluate the digital twin as a
 
 ### Table 13: Fault Injection Simulation Findings (`experiments/v2_fault_injection/fault_injection_results.json`)
 
+> [!WARNING]
+> **SUPERSEDED (do not cite):** `experiments/v2_fault_injection/` evaluated pseudo-predictions rather than trained model inferences on perturbed features. See `experiments/v2_fault_injection/SUPERSEDED.md`; replaced by `experiments/twin_alerts_synthetic_20261124` (`docs/twin_alert_evaluation.md`).
+
 | Simulated Fault Scenario | Injected Anomaly Profile | Fault Duration | Detection Latency | True Positive Rate | False Positive Rate |
 |---|---|---|---|---|---|
 | **Cooling Loss (Fan Failure)** | Sudden $+15.0^\circ\text{C}$ thermal step | 30 steps (5 hours) | **2 steps (20 min)** | **93.3%** | **0.0%** |

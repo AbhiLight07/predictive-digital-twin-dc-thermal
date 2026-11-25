@@ -67,7 +67,7 @@ pytest tests/ -v
 python scripts/run_twin3d.py
 ```
 
-Opens the FastAPI + offline Three.js 3D digital twin (`http://127.0.0.1:8000`) using trained models (`models/twin/`) and cached test forecasts (`data/twin_cache/`). See [docs/twin3d_user_guide.md](docs/twin3d_user_guide.md) and [docs/twin3d_demo_script.md](docs/twin3d_demo_script.md).
+Opens the FastAPI + offline Three.js 3D digital twin (`http://127.0.0.1:8000`) using trained models (`models/twin/`) and cached test forecasts (`data/twin_cache/`). See [docs/twin3d_user_guide.md](docs/twin3d_user_guide.md) and [docs/twin3d_demo_script.md](docs/twin3d_demo_script.md). Demo video: attach `docs/twin3d_demo.webm` to a GitHub Release (human uploads).
 
 ### Run the Legacy Streamlit Explorer
 

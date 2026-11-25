@@ -49,3 +49,6 @@ docs/snapshot.zip
 
 # Twin forecast cache (generated, large)
 data/twin_cache/
+
+# Demo video (upload via GitHub Releases)
+docs/twin3d_demo.webm

@@ -58,16 +58,19 @@ python scripts/data_audit.py data/raw/dataset2_combined.csv
 ### Run Tests
 
 ```bash
-pytest tests/ -v
+# Works in a fresh clone without raw data (data-dependent tests skip cleanly)
+pytest -q
 ```
 
-### Run the 3D Predictive Digital Twin
+### Run the 3D Predictive Digital Twin *(requires raw/interim data)*
 
 ```bash
+python scripts/make_parquet.py      # convert raw CSVs to data/interim/
+python scripts/build_twin_cache.py  # ~109 s total (69.5 s D1 + 33.1 s D2)
 python scripts/run_twin3d.py
 ```
 
-Opens the FastAPI + offline Three.js 3D digital twin (`http://127.0.0.1:8000`) using trained models (`models/twin/`) and cached test forecasts (`data/twin_cache/`). See [docs/twin3d_user_guide.md](docs/twin3d_user_guide.md) and [docs/twin3d_demo_script.md](docs/twin3d_demo_script.md). Demo video: attach `docs/twin3d_demo.webm` to a GitHub Release (human uploads).
+Opens the FastAPI + offline Three.js 3D digital twin (`http://127.0.0.1:8000`) using trained models (`models/twin/`, already tracked in Git) and cached test forecasts (`data/twin_cache/`). See [docs/twin3d_user_guide.md](docs/twin3d_user_guide.md) and [docs/twin3d_demo_script.md](docs/twin3d_demo_script.md). Demo video: attach `docs/twin3d_demo.webm` to a GitHub Release (human uploads).
 
 ### Run the Research Studio (Streamlit)
 

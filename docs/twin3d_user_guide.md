@@ -15,9 +15,8 @@ cd predictive-digital-twin-dc-thermal
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-# Install core project + 3D API dependencies
+# Install core project + 3D API dependencies (includes FastAPI, uvicorn, httpx, playwright)
 pip install -r requirements.txt
-pip install fastapi uvicorn httpx playwright
 ```
 
 All Three.js modules are vendored locally under `twin3d/web/vendor/three/` (`three@0.164.1`); **no internet connection or CDN is required at runtime**.
@@ -26,21 +25,28 @@ All Three.js modules are vendored locally under `twin3d/web/vendor/three/` (`thr
 
 ## 2. Prepare Data, Models & Forecast Cache
 
-1. **Telemetry data**: Download the University of Melbourne trace (Zenodo `10.5281/zenodo.10069402`) and convert raw files to interim parquet (`data/interim/dataset1/` and `data/interim/dataset2/`) using `scripts/make_parquet.py`. See `data/README.md`.
-2. **Train twin models**:
+*(Note: All 24 trained LightGBM models and metadata in `models/twin/` are already tracked in Git. The steps below that read/write `data/raw/`, `data/interim/`, or `data/twin_cache/` **require the Zenodo raw dataset**.)*
+
+1. **Telemetry data *(requires Zenodo raw CSVs)*:** Download the University of Melbourne trace (`10.5281/zenodo.10069402`) into `data/raw/` and convert to interim parquet (`data/interim/dataset1/` and `data/interim/dataset2/`):
    ```powershell
-   python scripts/train_twin_models.py
+   python scripts/make_parquet.py
+   ```
+   See `data/README.md`.
+2. **Train twin models *(optional — already committed in `models/twin/`; requires interim data)*:**
+   ```powershell
+   python scripts/train_twin_models.py --cluster d1 --horizons 1 6 36 --out models/twin
+   python scripts/train_twin_models.py --cluster d2 --horizons 1 6 36 --out models/twin
    ```
    Saves LightGBM point/lower/upper models, Conformalized Quantile Regression (CQR) calibration `q_hat`, and test metrics into `models/twin/`.
-3. **Build forecast cache**:
+3. **Build forecast cache *(requires interim data)*:**
    ```powershell
    python scripts/build_twin_cache.py
    ```
-   Writes 30-minute stride test-partition forecasts (`h = 1, 6, 36` steps) to `data/twin_cache/d1_forecasts.parquet` and `data/twin_cache/d2_forecasts.parquet`.
+   Writes 30-minute stride test-partition forecasts (`h = 1, 6, 36` steps) to `data/twin_cache/d1_forecasts.parquet` (550,848 rows, 9.2 MB) and `data/twin_cache/d2_forecasts.parquet` (205,671 rows, 4.3 MB). Measured runtime: **69.5 s (D1) + 33.1 s (D2) = 108.9 s total** on Windows.
 
 ---
 
-## 3. Run the 3D Digital Twin
+## 3. Run the 3D Digital Twin *(requires interim data + cache)*
 
 ```powershell
 python scripts/run_twin3d.py
@@ -75,6 +81,9 @@ Wait for initial model/cache indexing (~15–25s on startup); subsequent snapsho
 ## 5. Verification & Evidence Script
 
 ```powershell
+# Works in a fresh clone (synthetic engine + offline Playwright WebGL; no raw data needed)
 pytest tests/test_twin3d_api.py tests/test_twin3d_ui.py -v
+
+# Requires interim data & forecast cache
 python scripts/validate_twin3d.py
 ```

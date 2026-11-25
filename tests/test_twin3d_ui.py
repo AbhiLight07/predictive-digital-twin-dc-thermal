@@ -80,6 +80,23 @@ def test_vendor_three_files_present():
     assert (vendor / "addons" / "postprocessing" / "UnrealBloomPass.js").exists()
 
 
+def test_no_mock_formulas_in_app_or_web():
+    """Fail if legacy mock heuristics (0.28 *, np.sin(, or hard-coded q_hat) appear in app/ or twin3d/web/."""
+    q_hat_re = re.compile(r"\bq_hat\s*=\s*[-+]?\d+(?:\.\d+)?")
+    targets = []
+    app_dir = _REPO / "app"
+    if app_dir.exists():
+        targets.extend(f for f in app_dir.rglob("*") if f.is_file() and f.suffix in (".py", ".js", ".ts", ".html"))
+    targets.extend(f for f in _iter_web_sources() if f.suffix in (".py", ".js", ".ts", ".html"))
+    for f in targets:
+        text = f.read_text(encoding="utf-8")
+        rel = f.relative_to(_REPO)
+        assert "0.28 *" not in text, f"Forbidden mock formula '0.28 *' in {rel}"
+        assert "np.sin(" not in text, f"Forbidden mock 'np.sin(' in {rel}"
+        m = q_hat_re.search(text)
+        assert m is None, f"Forbidden hard-coded '{m.group(0)}' in {rel}"
+
+
 # ── Playwright WebGL fixtures ────────────────────────────────────────
 
 

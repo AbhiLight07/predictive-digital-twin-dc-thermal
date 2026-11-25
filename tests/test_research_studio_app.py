@@ -5,11 +5,10 @@ Verifies:
 2. No hardcoded Windows paths (d:/ or D:\\) anywhere in app or research_studio source files.
 3. No claims of physical cooling throttle or physical actuation.
 4. All UI modules import cleanly and their render functions exist.
-5. app/streamlit_app.py is strictly unmodified.
+5. app/streamlit_app.py is a deprecation stub.
 """
 
 from pathlib import Path
-import subprocess
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -55,14 +54,12 @@ def test_no_physical_actuation_claims():
     assert "physical actuation connected" not in content.lower()
 
 
-def test_legacy_streamlit_app_is_unchanged():
-    """Verify that git status shows zero modifications to app/streamlit_app.py."""
-    res = subprocess.run(
-        ["git", "diff", "--exit-code", str(LEGACY_APP_PATH)],
-        cwd=str(ROOT),
-        capture_output=True,
-    )
-    assert res.returncode == 0, "app/streamlit_app.py has been modified!"
+def test_legacy_streamlit_app_is_deprecated_stub():
+    """Verify that app/streamlit_app.py has been retired to a deprecation stub."""
+    content = LEGACY_APP_PATH.read_text(encoding="utf-8")
+    assert "Deprecated" in content
+    assert "scripts/run_twin3d.py" in content
+    assert "app/research_studio.py" in content
 
 
 def test_ui_components_importable():

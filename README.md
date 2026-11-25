@@ -69,11 +69,13 @@ python scripts/run_twin3d.py
 
 Opens the FastAPI + offline Three.js 3D digital twin (`http://127.0.0.1:8000`) using trained models (`models/twin/`) and cached test forecasts (`data/twin_cache/`). See [docs/twin3d_user_guide.md](docs/twin3d_user_guide.md) and [docs/twin3d_demo_script.md](docs/twin3d_demo_script.md). Demo video: attach `docs/twin3d_demo.webm` to a GitHub Release (human uploads).
 
-### Run the Legacy Streamlit Explorer
+### Run the Research Studio (Streamlit)
 
 ```bash
-streamlit run app/streamlit_app.py
+streamlit run app/research_studio.py
 ```
+
+*(Note: `app/streamlit_app.py` is deprecated; use `scripts/run_twin3d.py` or `app/research_studio.py`.)*
 
 ## Project Structure
 
@@ -113,8 +115,9 @@ streamlit run app/streamlit_app.py
 │   ├── run_twin3d.py           Launch 3D digital twin web server
 │   └── validate_twin3d.py      Capture screenshots, soak metrics, & validation report
 ├── experiments/                Experiment results (small files only)
-├── app/                        Streamlit digital twin
-│   └── streamlit_app.py
+├── app/                        Streamlit apps
+│   ├── research_studio.py      Research Demonstration Studio
+│   └── streamlit_app.py        Deprecated legacy mock stub
 ├── docs/                       Documentation
 │   ├── literature.md           Literature review table
 │   ├── protocol.md             Evaluation protocol description

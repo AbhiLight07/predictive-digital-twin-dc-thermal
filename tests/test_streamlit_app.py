@@ -35,3 +35,11 @@ def test_no_cooling_throttle_claims():
     """Verify no claims of physical cooling throttle or physical actuation."""
     content = APP_PATH.read_text(encoding="utf-8")
     assert "cooling throttle required" not in content.lower()
+
+
+def test_deprecated_stub_notice():
+    """Verify app/streamlit_app.py is a deprecation stub pointing to twin3d and research_studio."""
+    content = APP_PATH.read_text(encoding="utf-8")
+    assert "Deprecated" in content
+    assert "scripts/run_twin3d.py" in content
+    assert "app/research_studio.py" in content

@@ -344,11 +344,36 @@ async function refreshFrame() {
 }
 
 function renderCurrentData() {
-  const hosts = state.compareMode && state.lastCompareData ? state.lastCompareData.hosts.map((ch) => ({
-    ...ch,
-    cluster: state.lastCompareData.cluster,
-    forecast: { lower: ch.lower, upper: ch.upper, point: ch.twin, risk: ch.risk },
-  })) : state.lastSnapshotHosts;
+  let hosts = state.lastSnapshotHosts;
+  if (state.compareMode && state.lastCompareData) {
+    const snapByKey = new Map(state.lastSnapshotHosts.map((h) => [`${h.cluster}|${h.id}`, h]));
+    const cmpCluster = state.lastCompareData.cluster;
+    const cmpHorizon = state.lastCompareData.horizon ?? state.horizon;
+    hosts = state.lastCompareData.hosts.map((ch) => {
+      const sh = snapByKey.get(`${cmpCluster}|${ch.id}`);
+      const hasObs = ch.reality != null;
+      const effStatus = !hasObs || ch.status === "missing" ? "missing" : (ch.status || sh?.status || "missing");
+      const hasFc = ch.twin != null || ch.lower != null || ch.upper != null;
+      return {
+        ...(sh || {}),
+        ...ch,
+        cluster: cmpCluster,
+        status: effStatus,
+        temp_eff: hasObs ? ch.reality : (sh?.temp_eff ?? null),
+        partition: sh?.partition || state.lastCompareData.partition || "--",
+        forecast: hasFc
+          ? {
+              horizon: ch.horizon ?? cmpHorizon,
+              lower: ch.lower ?? null,
+              upper: ch.upper ?? null,
+              point: ch.twin ?? null,
+              persistence: ch.persistence ?? null,
+              risk: ch.risk || "unknown",
+            }
+          : null,
+      };
+    });
+  }
 
   fleet.updateSnapshot(hosts, {
     horizon: state.horizon,
@@ -421,6 +446,7 @@ window.__twin3d = {
     anatomyInletLabel: anatomy.inletStatusText,
   }),
   jumpToTime: (iso) => hud.setTimeToIso(iso),
+  selectHost: (key) => selectHostByKey(key, false),
 };
 
 // Render loop & FPS monitor

@@ -467,7 +467,8 @@ class Twin3DService:
         if not cidx.has_df_index:
             st = cidx.engine.state(host, t_ts)
             quality = st.cpu_temperature.quality.value
-            status = "missing" if quality == "missing" else ("stale" if quality == "stale" else "ok")
+            temp_val = _r2(st.cpu_temperature.value)
+            status = "missing" if (quality == "missing" or temp_val is None) else ("stale" if quality == "stale" else "ok")
             fans_vals = (
                 [
                     _r2(st.fan_speed1.value),
@@ -916,7 +917,7 @@ class Twin3DService:
                     "cluster": cid,
                     "idx": cidx.host_to_idx[h],
                     "id": h,
-                    "status": st["status"],
+                    "status": "missing" if st["temp_eff"] is None else st["status"],
                     "partition": part,
                     **ly,
                     **st,
@@ -965,6 +966,7 @@ class Twin3DService:
                 twin = fc["point"] if fc else None
                 lower = fc["lower"] if fc else None
                 upper = fc["upper"] if fc else None
+                persistence = fc.get("persistence") if fc else None
                 width = _r2(upper - lower) if upper is not None and lower is not None else None
                 risk = fc["risk"] if fc else "unknown"
                 hosts_out.append({
@@ -972,11 +974,13 @@ class Twin3DService:
                     "id": h,
                     **ly,
                     "status": status,
+                    "horizon": horizon,
                     "reality": reality,
                     "twin": twin,
                     "lower": lower,
                     "upper": upper,
                     "width": width,
+                    "persistence": persistence,
                     "error": None,
                     "inside": None,
                     "risk": risk,
@@ -989,11 +993,13 @@ class Twin3DService:
                     "id": h,
                     **ly,
                     "status": "unknown",
+                    "horizon": horizon,
                     "reality": reality,
                     "twin": None,
                     "lower": None,
                     "upper": None,
                     "width": None,
+                    "persistence": None,
                     "error": None,
                     "inside": None,
                     "risk": "unknown",
@@ -1003,6 +1009,7 @@ class Twin3DService:
             twin = fc["point"]
             lower = fc["lower"]
             upper = fc["upper"]
+            persistence = fc.get("persistence")
             width = _r2(upper - lower) if upper is not None and lower is not None else None
             err = round(twin - reality, 2)
             inside = bool(lower is not None and upper is not None and lower <= reality <= upper)
@@ -1017,11 +1024,13 @@ class Twin3DService:
                 "id": h,
                 **ly,
                 "status": "ok",
+                "horizon": horizon,
                 "reality": reality,
                 "twin": twin,
                 "lower": lower,
                 "upper": upper,
                 "width": width,
+                "persistence": persistence,
                 "error": err,
                 "inside": inside,
                 "risk": fc["risk"],

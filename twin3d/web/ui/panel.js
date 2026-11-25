@@ -4,7 +4,13 @@
  */
 
 function fmt(val, unit = "") {
-  if (val == null || Number.isNaN(val)) return '<span class="muted">not available</span>';
+  if (val == null || val === "" || (typeof val === "number" && Number.isNaN(val))) {
+    return '<span class="muted">not available</span>';
+  }
+  const n = typeof val === "number" ? val : Number(val);
+  if (typeof val === "number" && !Number.isFinite(n)) {
+    return '<span class="muted">not available</span>';
+  }
   return unit ? `${val} ${unit}` : String(val);
 }
 
@@ -112,9 +118,11 @@ export class PanelController {
     if (!cm) return;
     const mRows = cm.models
       .map((m) => {
-        const tag = m.kind === "planning" ? "Plan" : `h=${m.horizon}`;
+        const tag = m.kind === "planning" ? "Plan" : `h=${m.horizon ?? "n/a"}`;
         const pStr = m.persistence_mae != null ? ` / persist ${m.persistence_mae}` : "";
-        return `<div class="row"><span class="label">${tag} MAE / cov</span><span class="val">${m.test_mae}°C${pStr} · ${m.empirical_coverage}%</span></div>`;
+        const maeStr = m.test_mae != null ? `${m.test_mae}°C` : "n/a";
+        const covStr = m.empirical_coverage != null ? `${m.empirical_coverage}%` : "n/a";
+        return `<div class="row"><span class="label">${tag} MAE / cov</span><span class="val">${maeStr}${pStr} · ${covStr}</span></div>`;
       })
       .join("");
     const b = cm.partition_boundaries || {};
@@ -150,8 +158,8 @@ export class PanelController {
     }
     this.elAlerts.innerHTML = alerts
       .map(
-        (a) => `<div class="alert-item ${a.risk}" data-cluster="${a.cluster}" data-id="${a.id}">
-          <strong>${a.id}</strong> (${a.cluster.toUpperCase()} · ${a.rack_label}) — ${a.risk}, h=${a.horizon}, upper ${a.upper}°C
+        (a) => `<div class="alert-item ${a.risk || "unknown"}" data-cluster="${a.cluster || ""}" data-id="${a.id || ""}">
+          <strong>${a.id || "n/a"}</strong> (${(a.cluster || "--").toUpperCase()} · ${a.rack_label || "--"}) — ${a.risk || "unknown"}, h=${a.horizon ?? "n/a"}, upper ${a.upper != null ? `${a.upper}°C` : "n/a"}
         </div>`
       )
       .join("");
@@ -170,15 +178,24 @@ export class PanelController {
       return;
     }
     this.elBtnInspect.disabled = false;
-    this.elHostTitle.textContent = `${host.id} (${(host.cluster || "").toUpperCase()} · ${host.rack_label} slot ${host.slot})`;
+    const clusterTag = (host.cluster || "--").toUpperCase();
+    const rackLabel = host.rack_label ?? "--";
+    const slotLabel = host.slot ?? "--";
+    this.elHostTitle.textContent = `${host.id} (${clusterTag} · ${rackLabel} slot ${slotLabel})`;
+
+    const hasObs = host.temp_eff != null || host.reality != null;
+    const effStatus = !hasObs ? "missing" : (host.status || "missing");
 
     const partBadge =
       host.partition && host.partition !== "TEST"
         ? `<span class="badge-warn">${host.partition}: in-sample - not a fair test</span>`
         : `<span class="badge-test">${host.partition || "--"}</span>`;
 
+    const fansArr = Array.isArray(host.fans) ? host.fans : [];
     const fansHtml = host.fans_available
-      ? (host.fans || []).map((v) => (v != null ? v : "n/a")).join(", ") + " RPM"
+      ? (fansArr.some((v) => v != null && !Number.isNaN(Number(v)))
+          ? fansArr.map((v) => (v != null && !Number.isNaN(Number(v)) ? v : "n/a")).join(", ") + " RPM"
+          : '<span class="muted">not available</span>')
       : '<span class="muted">no fan sensor (not available)</span>';
 
     const inletHtml = host.inlet_available
@@ -188,16 +205,30 @@ export class PanelController {
     let fcHtml = '<div class="muted">Select horizon > 0 for forecast bounds</div>';
     if (host.forecast) {
       const fc = host.forecast;
+      const hNum = Number(fc.horizon);
+      const hLabel = fc.horizon != null && Number.isFinite(hNum) ? `+${hNum * 10}m` : "n/a";
+      const hasBounds =
+        fc.lower != null &&
+        fc.upper != null &&
+        !Number.isNaN(Number(fc.lower)) &&
+        !Number.isNaN(Number(fc.upper));
+      const boundsHtml = hasBounds
+        ? `[${fc.lower}, ${fc.upper}]°C`
+        : '<span class="muted">not available</span>';
+      const persistHtml =
+        fc.persistence != null && !Number.isNaN(Number(fc.persistence))
+          ? `${fc.persistence}°C`
+          : '<span class="muted">n/a</span>';
       fcHtml = `
-        <div class="row"><span class="label">Point (+${fc.horizon * 10}m)</span><span class="val">${fc.point}°C</span></div>
-        <div class="row"><span class="label">CQR Interval</span><span class="val">[${fc.lower}, ${fc.upper}]°C</span></div>
-        <div class="row"><span class="label">Persistence T(t)</span><span class="val">${fc.persistence}°C</span></div>
-        <div class="row"><span class="label">Risk</span><span class="val">${fc.risk}</span></div>
+        <div class="row"><span class="label">Point (${hLabel})</span><span class="val">${fmt(fc.point, "°C")}</span></div>
+        <div class="row"><span class="label">CQR Interval</span><span class="val">${boundsHtml}</span></div>
+        <div class="row"><span class="label">Persistence T(t)</span><span class="val">${persistHtml}</span></div>
+        <div class="row"><span class="label">Risk</span><span class="val">${fc.risk || "unknown"}</span></div>
       `;
     }
 
     this.elHostDetail.innerHTML = `
-      <div class="row"><span class="label">Status / Partition</span><span class="val">${host.status} · ${partBadge}</span></div>
+      <div class="row"><span class="label">Status / Partition</span><span class="val">${effStatus} · ${partBadge}</span></div>
       <div class="row"><span class="label">Temp effective</span><span class="val">${fmt(host.temp_eff, "°C")}</span></div>
       <div class="row"><span class="label">CPU1 / CPU2</span><span class="val">${fmt(host.cpu1, "°C")} / ${fmt(host.cpu2, "°C")}</span></div>
       <div class="row"><span class="label">Inlet temp</span><span class="val">${inletHtml}</span></div>
@@ -325,11 +356,16 @@ export class PanelController {
 
   updateWhatIfResult(data) {
     if (!data) return;
+    const hasBounds =
+      data.lower != null &&
+      data.upper != null &&
+      !Number.isNaN(Number(data.lower)) &&
+      !Number.isNaN(Number(data.upper));
     this.elWiResult.innerHTML = `
-      <div class="row"><span class="label">Predicted temp</span><span class="val"><strong>${data.point}°C</strong></span></div>
-      <div class="row"><span class="label">CQR interval</span><span class="val">[${data.lower}, ${data.upper}]°C</span></div>
-      <div class="row"><span class="label">Risk / Test MAE</span><span class="val">${data.risk} · ${data.test_mae ?? "--"}°C (cov ${data.coverage ?? "--"}%)</span></div>
-      <div class="badge-warn">${data.note}</div>
+      <div class="row"><span class="label">Predicted temp</span><span class="val"><strong>${fmt(data.point, "°C")}</strong></span></div>
+      <div class="row"><span class="label">CQR interval</span><span class="val">${hasBounds ? `[${data.lower}, ${data.upper}]°C` : '<span class="muted">not available</span>'}</span></div>
+      <div class="row"><span class="label">Risk / Test MAE</span><span class="val">${data.risk || "unknown"} · ${data.test_mae ?? "--"}°C (cov ${data.coverage ?? "--"}%)</span></div>
+      <div class="badge-warn">${data.note || ""}</div>
     `;
     this._drawSensitivityCurve(this.elCanvasSens, data.sensitivity_curve || []);
   }

@@ -474,3 +474,35 @@ def test_503_on_missing_model():
     assert client.get("/api/meta").status_code == 503
     assert client.get("/api/snapshot?cluster=d1&t=2019-05-01T02:00:00Z&horizon=1").status_code == 503
     assert client.post("/api/whatif", json={"cluster": "d1"}).status_code == 503
+
+
+def test_missing_observation_with_forecast():
+    """When observation is missing at t but a forecast exists, status must be 'missing' (never 'ok') and persistence may be null."""
+    eng = _SyntheticEngine("d1")
+    host = "qh2-rcc121"
+    t_str = "2019-05-01T03:00:00Z"
+    t_ts = pd.Timestamp("2019-05-01 03:00:00")
+
+    # Remove all observations for host up to t_ts so observation is missing, while cache has forecast
+    cache = _build_synthetic_cache(eng)
+    eng._data = eng._data[~((eng._data["Series"] == host) & (eng._data["Time"] <= t_ts))].copy()
+    # Also set persistence=NaN on one forecast row to verify null handling
+    issue_t = pd.Timestamp("2019-05-01 02:00:00")
+    mask = (cache["host"] == host) & (cache["time"] == issue_t) & (cache["horizon"] == 6)
+    cache.loc[mask, "persistence"] = np.nan
+
+    svc = Twin3DService(engines={"d1": eng}, caches={"d1": cache})
+    client = TestClient(create_app(service=svc, web_dir=_REPO / "nonexistent_web_dir"))
+
+    cmp_data = client.get(f"/api/compare?cluster=d1&t={t_str}&horizon=6").json()
+    h_cmp = next(h for h in cmp_data["hosts"] if h["id"] == host)
+    assert h_cmp["status"] == "missing"
+    assert h_cmp["reality"] is None
+    assert h_cmp["twin"] is not None
+    assert h_cmp["horizon"] == 6
+    assert h_cmp["persistence"] is None
+
+    snap_data = client.get(f"/api/snapshot?cluster=d1&t={t_str}&horizon=6").json()
+    h_snap = next(h for h in snap_data["hosts"] if h["id"] == host)
+    assert h_snap["status"] == "missing"
+    assert h_snap["temp_eff"] is None

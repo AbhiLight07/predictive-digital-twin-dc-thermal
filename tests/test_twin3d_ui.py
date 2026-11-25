@@ -17,6 +17,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytest
 import uvicorn
 
@@ -239,6 +240,7 @@ def test_3db_and_3dc_end_to_end_webgl(live_server_url, tmp_path):
         assert str(stats_js["compareStats"]["coverage_pct"]) in inside_dom
         page.uncheck("#chk-compare")
         page.wait_for_function("() => !window.__twin3d.getStats().compareMode", timeout=10000)
+        page.wait_for_timeout(400)
 
         # 6. 3D-C: Move What-If slider -> POST /api/whatif sent & ghost colour changes
         is_whatif_post = lambda r: r.request.method == "POST" and "/api/whatif" in r.url
@@ -267,11 +269,17 @@ def test_3db_and_3dc_end_to_end_webgl(live_server_url, tmp_path):
         assert "correlational - not causal" in wi_text.lower()
 
         # 6b. What-If hour & weekday selector override sends explicit calendar params
-        with page.expect_response(is_whatif_post, timeout=15000) as resp_hour:
+        with page.expect_response(
+            lambda r: is_whatif_post(r) and (r.request.post_data_json or {}).get("hour") == 18,
+            timeout=15000,
+        ) as resp_hour:
             page.select_option("#wi-hour", "18")
         assert resp_hour.value.status == 200
 
-        with page.expect_response(is_whatif_post, timeout=15000) as resp_wd:
+        with page.expect_response(
+            lambda r: is_whatif_post(r) and (r.request.post_data_json or {}).get("weekday") == 5,
+            timeout=15000,
+        ) as resp_wd:
             page.select_option("#wi-weekday", "5")
         assert resp_wd.value.status == 200
         cal_payload = resp_wd.value.request.post_data_json or {}
@@ -323,3 +331,118 @@ def test_3db_and_3dc_end_to_end_webgl(live_server_url, tmp_path):
 
     assert console_errors == [], f"Console errors: {console_errors}"
     assert page_errors == [], f"Page errors: {page_errors}"
+
+
+@needs_playwright
+def test_panel_no_undefined_nan_null_across_views(tmp_path):
+    """Scan #panel text across fleet, forecast, compare, what-if, anatomy, and missing-obs host for 'undefined', 'NaN', or 'null'."""
+    from playwright.sync_api import sync_playwright
+
+    d1 = _SyntheticEngine("d1")
+    d2 = _SyntheticEngine("d2")
+    c1 = _build_synthetic_cache(d1)
+    # Remove observations for qh2-rcc121 at/before 03:00Z while keeping cache forecast with persistence=NaN
+    miss_host = "qh2-rcc121"
+    t_target = pd.Timestamp("2019-05-01 03:00:00")
+    t_issue = pd.Timestamp("2019-05-01 02:00:00")
+    d1._data = d1._data[~((d1._data["Series"] == miss_host) & (d1._data["Time"] <= t_target))].copy()
+    c1.loc[(c1["host"] == miss_host) & (c1["time"] == t_issue) & (c1["horizon"] == 6), "persistence"] = np.nan
+
+    svc = Twin3DService(engines={"d1": d1, "d2": d2}, caches={"d1": c1, "d2": _build_synthetic_cache(d2)})
+    app = create_app(service=svc, web_dir=_WEB_DIR)
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error")
+    server = uvicorn.Server(config)
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+
+    import urllib.request
+    base = f"http://127.0.0.1:{port}"
+    for _ in range(50):
+        try:
+            with urllib.request.urlopen(f"{base}/api/health", timeout=1) as r:
+                if r.status == 200:
+                    break
+        except Exception:
+            time.sleep(0.1)
+
+    bad_re = re.compile(r"\b(undefined|NaN|null)\b", re.IGNORECASE)
+
+    def _assert_panel_clean(page, view_name):
+        txt = page.locator("#panel").inner_text()
+        m = bad_re.search(txt)
+        assert m is None, f"Found '{m.group(0)}' in #panel during {view_name} view:\n{txt}"
+        return txt
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                channel="chrome",
+                headless=True,
+                args=[
+                    "--use-gl=angle",
+                    "--use-angle=swiftshader",
+                    "--enable-webgl",
+                    "--ignore-gpu-blocklist",
+                ],
+            )
+            page = browser.new_page(viewport={"width": 1280, "height": 800})
+            page.goto(base, wait_until="networkidle")
+            page.wait_for_function("() => document.getElementById('status-overlay').style.display === 'none'", timeout=15000)
+            page.evaluate("() => window.__twin3d.jumpToTime('2019-05-01T03:00:00Z')")
+            page.wait_for_timeout(400)
+
+            # 1. Fleet view (horizon = 0)
+            page.select_option("#sel-horizon", "0")
+            page.wait_for_timeout(350)
+            _assert_panel_clean(page, "fleet(h=0)")
+
+            # 2. Forecast view (horizon = 6) + select missing-obs host
+            page.select_option("#sel-horizon", "6")
+            page.wait_for_timeout(350)
+            page.evaluate("() => window.__twin3d.selectHost('d1|qh2-rcc121')")
+            page.wait_for_timeout(350)
+            fc_txt = _assert_panel_clean(page, "forecast(h=6, missing host)")
+            assert "missing" in fc_txt.lower()
+            assert "not available" in fc_txt.lower()
+
+            # 3. Compare view (missing-obs host with null persistence)
+            page.check("#chk-compare")
+            page.wait_for_function("() => window.__twin3d.getStats().compareMode && window.__twin3d.getStats().compareStats !== null", timeout=10000)
+            page.evaluate("() => window.__twin3d.selectHost('d1|qh2-rcc121')")
+            page.wait_for_timeout(350)
+            cmp_txt = _assert_panel_clean(page, "compare(missing host)")
+            detail_txt = page.locator("#host-detail").inner_text()
+            assert "missing" in detail_txt.lower(), f"Expected status missing, got:\n{detail_txt}"
+            assert "not available" in detail_txt.lower()
+            assert "n/a" in detail_txt.lower()
+            assert "ok" not in detail_txt.lower().splitlines()[0]
+
+            # Also check an ok host in compare mode
+            page.evaluate("() => window.__twin3d.selectHost('d1|qh2-rcc122')")
+            page.wait_for_timeout(350)
+            _assert_panel_clean(page, "compare(ok host)")
+
+            # 4. What-If view
+            page.uncheck("#chk-compare")
+            page.wait_for_timeout(250)
+            page.locator("#wi-load").fill("80")
+            page.locator("#wi-load").dispatch_event("input")
+            page.wait_for_timeout(350)
+            _assert_panel_clean(page, "what-if")
+
+            # 5. Anatomy view
+            page.click("#btn-inspect-server")
+            page.wait_for_function("() => window.__twin3d.getStats().anatomyMode === true", timeout=10000)
+            page.wait_for_timeout(250)
+            _assert_panel_clean(page, "anatomy")
+
+            browser.close()
+    finally:
+        server.should_exit = True
+        thread.join(timeout=5)
